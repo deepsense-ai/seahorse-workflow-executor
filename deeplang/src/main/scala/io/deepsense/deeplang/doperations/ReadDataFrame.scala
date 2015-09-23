@@ -16,22 +16,20 @@
 
 package io.deepsense.deeplang.doperations
 
-
 import java.io.IOException
 import java.util.NoSuchElementException
-
-import org.apache.commons.lang3.StringUtils
 
 import scala.collection.immutable.ListMap
 import scala.reflect.ClassTag
 import scala.reflect.runtime.{universe => ru}
 
 import au.com.bytecode.opencsv.CSVParser
+import org.apache.commons.lang3.StringUtils
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.io.{LongWritable, Text}
 import org.apache.hadoop.mapreduce.lib.input.TextInputFormat
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.types.{StructType, StringType, StructField}
+import org.apache.spark.sql.types.{StringType, StructField, StructType}
 import org.apache.spark.sql.{Row, types}
 
 import io.deepsense.commons.datetime.DateTimeConverter
@@ -40,8 +38,7 @@ import io.deepsense.deeplang.doperables.dataframe.{DataFrame, DataFrameColumnsGe
 import io.deepsense.deeplang.doperations.exceptions.{DeepSenseIOException, InvalidFileException}
 import io.deepsense.deeplang.parameters.FileFormat.FileFormat
 import io.deepsense.deeplang.parameters._
-import io.deepsense.deeplang.{DOperation0To1, ExecutionContext}
-
+import io.deepsense.deeplang.{DOperation0To1, ExecutionContext, FileSystemClient}
 
 case class ReadDataFrame() extends DOperation0To1[DataFrame] with ReadDataFrameParameters {
   import io.deepsense.deeplang.doperations.ReadDataFrame._
@@ -54,20 +51,16 @@ case class ReadDataFrame() extends DOperation0To1[DataFrame] with ReadDataFrameP
     "line separator" -> lineSeparatorParameter)
 
   override protected def _execute(context: ExecutionContext)(): DataFrame = {
-    readFile(sourceFileParameter.value.get, context)
-  }
-
-  private def readFile(path: String, context: ExecutionContext): DataFrame = {
-    val sparkContext = context.sqlContext.sparkContext
+    val path = FileSystemClient.replaceLeadingTildeWithHomeDirectory(sourceFileParameter.value.get)
 
     try {
       FileFormat.withName(formatParameter.value.get) match {
         case FileFormat.CSV =>
-          val conf = new Configuration(sparkContext.hadoopConfiguration)
+          val conf = new Configuration(context.sparkContext.hadoopConfiguration)
           conf.set(
             ReadDataFrame.recordDelimiterSettingName,
             determineLineSeparator())
-          val lines = sparkContext.newAPIHadoopFile(
+          val lines = context.sparkContext.newAPIHadoopFile(
             path, classOf[TextInputFormat], classOf[LongWritable], classOf[Text], conf
           ).map { case (_, text) => text.toString }
 

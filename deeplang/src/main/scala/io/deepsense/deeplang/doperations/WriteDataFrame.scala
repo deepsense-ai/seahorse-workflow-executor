@@ -20,7 +20,6 @@ import java.io.{IOException, StringWriter}
 import java.sql.Timestamp
 
 import scala.collection.immutable.ListMap
-import scala.compat.Platform.EOL
 import scala.reflect.runtime.{universe => ru}
 
 import au.com.bytecode.opencsv.CSVWriter
@@ -35,7 +34,7 @@ import io.deepsense.deeplang.doperables.dataframe.types.categorical.{Categorical
 import io.deepsense.deeplang.doperations.exceptions.{DeepSenseIOException, WriteFileException}
 import io.deepsense.deeplang.parameters.FileFormat.FileFormat
 import io.deepsense.deeplang.parameters._
-import io.deepsense.deeplang.{DOperation1To0, ExecutionContext}
+import io.deepsense.deeplang.{DOperation1To0, ExecutionContext, FileSystemClient}
 
 case class WriteDataFrame() extends DOperation1To0[DataFrame] {
 
@@ -81,7 +80,7 @@ case class WriteDataFrame() extends DOperation1To0[DataFrame] {
   )
 
   override protected def _execute(context: ExecutionContext)(dataFrame: DataFrame): Unit = {
-    val path = outputFileParameter.value.get
+    val path = FileSystemClient.replaceLeadingTildeWithHomeDirectory(outputFileParameter.value.get)
 
     try {
       FileFormat.withName(formatParameter.value.get) match {
@@ -97,7 +96,6 @@ case class WriteDataFrame() extends DOperation1To0[DataFrame] {
           } else {
             csv
           }
-
           result.saveAsTextFile(path)
         case FileFormat.PARQUET =>
           // TODO: DS-1480 Writing DF in parquet format when column names contain forbidden chars
