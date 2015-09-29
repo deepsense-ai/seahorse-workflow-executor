@@ -91,7 +91,7 @@ class ReadDataFrameIntegSpec extends DeeplangIntegTestSupport with BeforeAndAfte
           Seq(
             Row("x1", "x1", "x1"),
             Row("x2", "x2", "x2"),
-            Row("x3", "x3", "x3")),
+            Row("x3", "x3", "x3\n")),
           threeStringsSchema))
     }
 
@@ -106,7 +106,7 @@ class ReadDataFrameIntegSpec extends DeeplangIntegTestSupport with BeforeAndAfte
       assertDataFramesEqual(
         dataFrame,
         expectedDataFrame(
-          Seq(Row("a1", "b1", "c1\na2", "b2", "c2\na3", "b3", "c3")),
+          Seq(Row("a1", "b1", "c1\na2", "b2", "c2\na3", "b3", "c3\n")),
           schemaWithDefaultColumnNames(types = for (i <- 0 until 7) yield StringType)))
     }
 
@@ -129,7 +129,7 @@ class ReadDataFrameIntegSpec extends DeeplangIntegTestSupport with BeforeAndAfte
         ))
     }
 
-    "trim white spaces for not quoted column names and values in CSV" in {
+    "trim white spaces for not quoted column names" in {
       val dataFrame = readDataFrame(
         fileName = "with_white_spaces.csv",
         lineSeparator = lineSep(ReadDataFrame.LineSeparator.UNIX),
@@ -141,10 +141,10 @@ class ReadDataFrameIntegSpec extends DeeplangIntegTestSupport with BeforeAndAfte
         dataFrame,
         expectedDataFrame(
           Seq(
-            Row(" a2", "b2", "c2"),
-            Row(" a3", "b3", "c3")
+            Row(" a2", " b2 ", " c2"),
+            Row(" a3", " b3 ", " c3")
           ),
-          schemaOf(Seq(" a1", "b1", "c1"),
+          schemaOf(Seq("a1", "b1", "c1"),
             Seq(StringType, StringType, StringType)))
       )
     }
@@ -173,12 +173,12 @@ class ReadDataFrameIntegSpec extends DeeplangIntegTestSupport with BeforeAndAfte
         dataFrame,
         expectedDataFrame(
           Seq(
-            Row(2.0, true, null, "1.1", " hello world ", toTimestamp("2015-08-21T19:40:56.823Z")),
-            Row(3.2, false, null, "1.2", "unquoted string", null),
-            Row(1.1, true, null, "1", "\"quoted string\"", toTimestamp("2015-08-20T09:40:56.823Z"))
+            Row(2.0, true, null, 1.1, " hello, world ", toTimestamp("2015-08-21T19:40:56.823Z")),
+            Row(3.2, false, null, 1.2, " unquoted string", null),
+            Row(1.1, true, null, 1.0, "\"quoted string\"", toTimestamp("2015-08-20T09:40:56.823Z"))
           ),
           schemaWithDefaultColumnNames(
-            Seq(DoubleType, BooleanType, BooleanType, StringType, StringType, TimestampType)
+            Seq(DoubleType, BooleanType, BooleanType, DoubleType, StringType, TimestampType)
           )
         ))
     }
@@ -198,12 +198,12 @@ class ReadDataFrameIntegSpec extends DeeplangIntegTestSupport with BeforeAndAfte
         dataFrame,
         expectedDataFrame(
           Seq(
-            Row(2.0, 1.0, null, "1.1", " hello world ", toTimestamp("2015-08-21T19:40:56.823Z")),
-            Row(3.2, 0.0, null, "1.2", "unquoted string", null),
-            Row(1.1, 1.0, null, "1", "\"quoted string\"", toTimestamp("2015-08-20T09:40:56.823Z"))
+            Row(2.0, 1.0, null, 1.1, " hello, world ", toTimestamp("2015-08-21T19:40:56.823Z")),
+            Row(3.2, 0.0, null, 1.2, " unquoted string", null),
+            Row(1.1, 1.0, null, 1.0, "\"quoted string\"", toTimestamp("2015-08-20T09:40:56.823Z"))
           ),
           schemaWithDefaultColumnNames(
-            Seq(DoubleType, DoubleType, DoubleType, StringType, StringType, TimestampType)
+            Seq(DoubleType, DoubleType, DoubleType, DoubleType, StringType, TimestampType)
           )
         ))
     }

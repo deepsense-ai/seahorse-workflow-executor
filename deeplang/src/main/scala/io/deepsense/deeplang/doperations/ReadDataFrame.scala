@@ -117,7 +117,7 @@ case class ReadDataFrame() extends DOperation0To1[DataFrame] with ReadDataFrameP
       categoricalColumnsSelection: Option[MultipleColumnSelection]): DataFrame = {
 
     val namesIncluded = csvNamesIncludedParameter.value.get
-    val lines = splitLinesIntoColumns(rdd, csvColumnSeparatorParameter.value.get).cache()
+    val lines = splitLinesIntoColumns(rdd, csvColumnSeparatorParameter.value.get.charAt(0)).cache()
 
     val (columnNames, dataLines) = if (namesIncluded) {
       val processedFirstLine = lines.first().map(_.trim).map(removeQuotes).map(sanitizeColumnName)
@@ -338,11 +338,10 @@ object ReadDataFrame {
    * Splits string lines by separator, but escapes separator within double quotes.
    * For example, line "a,b,\"x,y,z\"" will be split into ["a","b","\"x,y,z\""].
    */
-  private def splitLinesIntoColumns(lines: RDD[String], separator: String) = {
-    lines.map(
-      new CSVParser(separator(0), CSVParser.NULL_CHARACTER, CSVParser.NULL_CHARACTER)
-        .parseLine(_).toSeq
-    )
+
+  private def splitLinesIntoColumns(lines: RDD[String], separator: Char): RDD[Seq[String]] = {
+    lines.map(new CSVParser(separator, '"', '\\', false, true)
+      .parseLine(_).toSeq)
   }
 
   private def skipFirstLine[T : ClassTag](rdd: RDD[T]): RDD[T] =
@@ -394,7 +393,7 @@ object ReadDataFrame {
     val trimmedCell = cell.trim
 
     if (targetType == types.StringType || willBeCategorical) {
-      removeQuotes(trimmedCell)
+      cell
 
     } else if (trimmedCell.isEmpty) {
       null
