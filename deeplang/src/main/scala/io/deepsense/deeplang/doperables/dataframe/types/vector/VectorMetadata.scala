@@ -14,17 +14,6 @@
  * limitations under the License.
  */
 
-package io.deepsense.commons.types
+package io.deepsense.deeplang.doperables.dataframe.types.vector
 
-/**
- * Types of data that column in dataframe can have.
- */
-object ColumnType extends Enumeration {
-  type ColumnType = Value
-  val numeric = Value("numeric")
-  val boolean = Value("boolean")
-  val categorical = Value("categorical")
-  val string = Value("string")
-  val timestamp = Value("timestamp")
-  val vector = Value("vector")
-}
+case class VectorMetadata(length: Long)

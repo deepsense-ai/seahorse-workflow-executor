@@ -23,6 +23,7 @@ import spray.json._
 import io.deepsense.commons.types.ColumnType
 import io.deepsense.deeplang.DOperable.AbstractMetadata
 import io.deepsense.deeplang.doperables.dataframe.types.categorical.CategoriesMapping
+import io.deepsense.deeplang.doperables.dataframe.types.vector.VectorMetadata
 
 class DataFrameMetadataJsonProtocolSpec extends FlatSpec with Matchers with MockitoSugar {
 
@@ -52,10 +53,11 @@ class DataFrameMetadataJsonProtocolSpec extends FlatSpec with Matchers with Mock
     metadata =
       DataFrameMetadata(
         true, true,
-        Map("x" ->
-          CategoricalColumnMetadata("x", Some(0), Some(CategoriesMapping(Seq("a", "b", "c")))),
-          "y" ->
-            CommonColumnMetadata("y", Some(1), Some(ColumnType.numeric))
+        Map(
+          "x" ->
+            CategoricalColumnMetadata("x", Some(0), Some(CategoriesMapping(Seq("a", "b", "c")))),
+          "y" -> CommonColumnMetadata("y", Some(1), Some(ColumnType.numeric)),
+          "z" -> VectorColumnMetadata("z", Some(2), Some(VectorMetadata(124235)))
         )
       ),
     json = JsObject(
@@ -74,6 +76,14 @@ class DataFrameMetadataJsonProtocolSpec extends FlatSpec with Matchers with Mock
             "name" -> JsString("y"),
             "index" -> JsNumber(1),
             "columnType" -> JsString("numeric")
+          ),
+          "z" -> JsObject(
+            "name" -> JsString("z"),
+            "index" -> JsNumber(2),
+            "columnType" -> JsString("vector"),
+            "vectorMetadata" -> JsObject(
+              "length" -> JsNumber(124235)
+            )
           )
         )
       )
@@ -85,7 +95,8 @@ class DataFrameMetadataJsonProtocolSpec extends FlatSpec with Matchers with Mock
       false, false,
       Map(
         "x" -> CategoricalColumnMetadata("x", None, None),
-        "y" -> CommonColumnMetadata("y", None, None)
+        "y" -> CommonColumnMetadata("y", None, None),
+        "z" -> VectorColumnMetadata("z", None, None)
       )
     ),
       json = JsObject(
@@ -104,6 +115,12 @@ class DataFrameMetadataJsonProtocolSpec extends FlatSpec with Matchers with Mock
             "name" -> JsString("y"),
             "index" -> JsNull,
             "columnType" -> JsNull
+          ),
+          "z" -> JsObject(
+            "name" -> JsString("z"),
+            "index" -> JsNull,
+            "columnType" -> JsString("vector"),
+            "vectorMetadata" -> JsNull
           )
         )
       )

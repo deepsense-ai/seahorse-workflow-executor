@@ -16,26 +16,29 @@
 
 package io.deepsense.deeplang.doperables.dataframe.types
 
+import org.apache.spark.mllib.linalg.VectorUDT
 import org.apache.spark.sql
+
 import io.deepsense.commons.types.ColumnType
-import ColumnType._
+import io.deepsense.commons.types.ColumnType._
 
 object SparkConversions {
 
-  private val sparkColumnTypeToColumnTypeMap: Map[ColumnType, sql.types.DataType] = Map(
+  private val columnTypeToSparkColumnTypeMap: Map[ColumnType, sql.types.DataType] = Map(
     ColumnType.numeric -> sql.types.DoubleType,
     ColumnType.string -> sql.types.StringType,
     ColumnType.boolean -> sql.types.BooleanType,
     ColumnType.timestamp -> sql.types.TimestampType,
-    ColumnType.categorical -> sql.types.IntegerType
+    ColumnType.categorical -> sql.types.IntegerType,
+    ColumnType.vector -> new VectorUDT()
   )
 
-  private val columnTypeToSparkColumnTypeMap: Map[sql.types.DataType, ColumnType] =
-    sparkColumnTypeToColumnTypeMap.map(_.swap).toMap
+  private val sparkColumnTypeToColumnTypeMap: Map[sql.types.DataType, ColumnType] =
+    columnTypeToSparkColumnTypeMap.map(_.swap).toMap
 
   def columnTypeToSparkColumnType(columnType: ColumnType): sql.types.DataType =
-    sparkColumnTypeToColumnTypeMap(columnType)
+    columnTypeToSparkColumnTypeMap(columnType)
 
   def sparkColumnTypeToColumnType(sparkColumnType: sql.types.DataType): ColumnType =
-    columnTypeToSparkColumnTypeMap(sparkColumnType)
+    sparkColumnTypeToColumnTypeMap(sparkColumnType)
 }

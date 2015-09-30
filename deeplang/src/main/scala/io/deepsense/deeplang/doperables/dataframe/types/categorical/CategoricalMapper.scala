@@ -144,7 +144,7 @@ object CategoricalMapper {
   }
 
   /**
-   * Permorms conversion of categorical columns to string columns in Spark DataFrame schema.
+   * Performs conversion of categorical columns to string columns in Spark DataFrame schema.
    * @param schema
    * @param categoricalMetadata
    * @return Spark DataFrame schema with categorical columns converted to string columns

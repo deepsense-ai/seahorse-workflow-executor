@@ -22,6 +22,7 @@ import spray.json._
 import io.deepsense.commons.json.EnumerationSerializer
 import io.deepsense.commons.types.ColumnType
 import io.deepsense.deeplang.doperables.dataframe.types.categorical.CategoriesMapping
+import io.deepsense.deeplang.doperables.dataframe.types.vector.VectorMetadata
 
 trait CategoriesMappingJsonProtocol extends DefaultJsonProtocol with SprayJsonSupport {
   implicit object CategoriesMappingFormat extends JsonFormat[CategoriesMapping] {
@@ -54,18 +55,33 @@ trait ColumnMetadataJsonProtocol
       json.convertTo[CategoricalColumnMetadata](defaultFormat)
   }
 
+  implicit val vectorMetadataFormat = jsonFormat1(VectorMetadata)
+
+  implicit object VectorColumnMetadataFormat extends JsonFormat[VectorColumnMetadata] {
+    private val defaultFormat = jsonFormat3(VectorColumnMetadata.apply)
+    override def write(vm: VectorColumnMetadata): JsValue = JsObject(
+      vm.toJson(defaultFormat).asJsObject.fields + (ColumnTypeField -> vm.columnType.toJson))
+
+    override def read(json: JsValue): VectorColumnMetadata =
+      json.convertTo[VectorColumnMetadata](defaultFormat)
+  }
+
   implicit object ColumnMetadataFormat extends JsonFormat[ColumnMetadata] {
     override def write(cm: ColumnMetadata): JsValue = cm match {
       case commonCm: CommonColumnMetadata => commonCm.toJson
       case categoricalCm: CategoricalColumnMetadata => categoricalCm.toJson
+      case vectorCm: VectorColumnMetadata => vectorCm.toJson
     }
 
     override def read(json: JsValue): ColumnMetadata = {
       val categoricalType = ColumnType.categorical.toString
+      val vectorType = ColumnType.vector.toString
+
       json.asJsObject.fields(ColumnTypeField) match {
         case JsNull => json.convertTo[CommonColumnMetadata]
         case notNullJson => notNullJson.convertTo[String] match {
           case `categoricalType` => json.convertTo[CategoricalColumnMetadata]
+          case `vectorType` => json.convertTo[VectorColumnMetadata]
           case _ => json.convertTo[CommonColumnMetadata]
         }
       }

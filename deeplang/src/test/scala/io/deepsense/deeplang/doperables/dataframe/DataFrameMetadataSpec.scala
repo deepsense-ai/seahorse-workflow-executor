@@ -16,11 +16,13 @@
 
 package io.deepsense.deeplang.doperables.dataframe
 
+import org.apache.spark.mllib.linalg.VectorUDT
 import org.apache.spark.sql.types._
 
 import io.deepsense.commons.types.ColumnType
 import io.deepsense.deeplang.UnitSpec
 import io.deepsense.deeplang.doperables.dataframe.types.categorical.{CategoriesMapping, MappingMetadataConverter}
+import io.deepsense.deeplang.doperables.dataframe.types.vector.{VectorMetadata, VectorMetadataConverter}
 import io.deepsense.deeplang.doperations.exceptions.{ColumnDoesNotExistException, ColumnsDoNotExistException}
 import io.deepsense.deeplang.inference.exceptions.NameNotUniqueException
 import io.deepsense.deeplang.inference.{MultipleColumnsMayNotExistWarning, SingleColumnMayNotExistWarning}
@@ -34,6 +36,8 @@ class DataFrameMetadataSpec extends UnitSpec {
       CategoriesMapping(Seq("A", "B", "C")),
       CategoriesMapping(Seq("cat", "dog"))
     )
+
+    val vectorMetadata = VectorMetadata(54321987654L)
 
     val schema = StructType(Seq(
       StructField(
@@ -49,7 +53,11 @@ class DataFrameMetadataSpec extends UnitSpec {
       StructField(
         "categorical_2",
         IntegerType,
-        metadata = MappingMetadataConverter.mappingToMetadata(mappings(1)))
+        metadata = MappingMetadataConverter.mappingToMetadata(mappings(1))),
+      StructField(
+        "vector_column",
+        new VectorUDT(),
+        metadata = VectorMetadataConverter.toSchemaMetadata(vectorMetadata))
     ))
 
     val metadata = DataFrameMetadata(
@@ -63,7 +71,10 @@ class DataFrameMetadataSpec extends UnitSpec {
         "string_column" -> CommonColumnMetadata(
           name = "string_column", index = Some(2), columnType = Some(ColumnType.string)),
         "categorical_2" -> CategoricalColumnMetadata(
-          name = "categorical_2", index = Some(3), categories = Some(mappings(1)))
+          name = "categorical_2", index = Some(3), categories = Some(mappings(1))),
+        "vector_column" -> VectorColumnMetadata(
+          name = "vector_column", index = Some(4), vectorMetadata = Some(vectorMetadata)
+        )
       )
     )
 
@@ -205,7 +216,7 @@ class DataFrameMetadataSpec extends UnitSpec {
         val typeSelection = TypeColumnSelection(Set(numericColumn.columnType.get))
         val selection = MultipleColumnSelection(Vector(typeSelection), true)
         val (columns, warnings) = metadata.select(selection)
-        columns should have size 3
+        columns should have size 4
         columns shouldNot contain(numericColumn)
         warnings.warnings shouldBe empty
       }

@@ -24,6 +24,7 @@ import io.deepsense.deeplang._
 import io.deepsense.deeplang.doperables.dataframe.DataFrameMetadataJsonProtocol._
 import io.deepsense.deeplang.doperables.dataframe.types.SparkConversions
 import io.deepsense.deeplang.doperables.dataframe.types.categorical.{CategoriesMapping, MappingMetadataConverter}
+import io.deepsense.deeplang.doperables.dataframe.types.vector.{VectorMetadataConverter, VectorMetadata}
 import io.deepsense.deeplang.doperations.exceptions.{ColumnDoesNotExistException, ColumnsDoNotExistException}
 import io.deepsense.deeplang.inference.exceptions.NameNotUniqueException
 import io.deepsense.deeplang.inference.{InferenceWarning, InferenceWarnings, MultipleColumnsMayNotExistWarning, SingleColumnMayNotExistWarning}
@@ -222,7 +223,7 @@ object DataFrameMetadata {
       isExact = true,
       isColumnCountExact = true,
       columns = schema.zipWithIndex.map({ case (structField, index) =>
-        val rawResult = CommonColumnMetadata.fromStructField(structField, index)
+        val rawResult = ColumnMetadata.fromStructField(structField, index)
         rawResult.name -> rawResult
       }).toMap
     )
@@ -301,17 +302,42 @@ case class CategoricalColumnMetadata(
   def withIndex(index: Option[Int]): ColumnMetadata = copy(index = index)
 }
 
-object CommonColumnMetadata {
+/**
+ * Represents knowledge about fixed-size vector column.
+ * @param vectorMetadata Vector-associated metadata about this column (None denotes unknown).
+ */
+case class VectorColumnMetadata(
+    name: String,
+    index: Option[Int],
+    vectorMetadata: Option[VectorMetadata])
+  extends ColumnMetadata {
+
+  def columnType: Option[ColumnType] = Some(ColumnType.vector)
+
+  private[dataframe] def toStructField: StructField = StructField(
+    name = name,
+    dataType = SparkConversions.columnTypeToSparkColumnType(columnType.get),
+    metadata = VectorMetadataConverter.toSchemaMetadata(vectorMetadata.get)
+  )
+
+  def withIndex(index: Option[Int]): ColumnMetadata = copy(index = index)
+}
+
+object ColumnMetadata {
 
   private[dataframe] def fromStructField(structField: StructField, index: Int): ColumnMetadata = {
     val name = structField.name
     MappingMetadataConverter.mappingFromMetadata(structField.metadata) match {
       case Some(categoriesMapping) => CategoricalColumnMetadata(
         name, Some(index), Some(categoriesMapping))
-      case None => CommonColumnMetadata(
-        name = structField.name,
-        index = Some(index),
-        columnType = Some(SparkConversions.sparkColumnTypeToColumnType(structField.dataType)))
+      case None => VectorMetadataConverter.fromSchemaMetadata(structField.metadata) match {
+        case Some(vectorMetadata) => VectorColumnMetadata(
+          name, Some(index), Some(vectorMetadata))
+        case None => CommonColumnMetadata(
+          name = structField.name,
+          index = Some(index),
+          columnType = Some(SparkConversions.sparkColumnTypeToColumnType(structField.dataType)))
+      }
     }
   }
 }
