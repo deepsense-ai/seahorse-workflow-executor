@@ -18,7 +18,7 @@ package io.deepsense.deeplang.doperables.dataframe
 
 import java.sql.Timestamp
 
-import org.apache.spark.mllib.linalg.{Vector, Vectors}
+import org.apache.spark.mllib.linalg._
 import org.apache.spark.mllib.stat.{MultivariateStatisticalSummary, Statistics}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql
@@ -304,6 +304,7 @@ trait DataFrameReportGenerator {
           List(false.toString, true.toString))
         case DoubleType => row.getDouble(index)
         case IntegerType if categoricalMetadata.isCategorical(index) => row.getInt(index).toDouble
+        case _: VectorUDT => 0L
       }
     }
 
@@ -335,6 +336,7 @@ trait DataFrameReportGenerator {
     case StringType => Empty
     case BooleanType => Categorical
     case IntegerType if categoricalMetadata.isCategorical(structField.name) => Categorical
+    case _: VectorUDT => Empty
   }
 
   private def categorical2Double(value: String, possibleValues: List[String]): Double =
@@ -354,8 +356,30 @@ trait DataFrameReportGenerator {
         case DoubleType => Some(DoubleUtils.double2String(row.getDouble(index)))
         case IntegerType if categoricalMetadata.isCategorical(index) =>
           Some(categoricalMetadata.mapping(index).idToValue(row.getInt(index)))
+        case _: VectorUDT => Some(vector2String(row, index))
         case _ => Some(row(index).toString)
       }
+    }
+  }
+
+  def vector2String(row: Row, index: Int): String = {
+    val value = row.getAs[Vector](index)
+    value match {
+      case DenseVector(values)
+        if (values.length <= DataFrameReportGenerator.maxVectorDisplaySize) =>
+        values.map(DoubleUtils.double2String).mkString("(", ", ", ")")
+      case DenseVector(values) =>
+        values.take(DataFrameReportGenerator.maxVectorDisplaySize)
+          .map(DoubleUtils.double2String).mkString("(", ", ", ", ...)")
+      case SparseVector(size, indices, values)
+        if (values.length <= DataFrameReportGenerator.maxVectorDisplaySize) =>
+        indices.zip(values).map {
+          case (index, value) => s"$index: ${DoubleUtils.double2String(value)}"
+        }.mkString("(", ", ", ")")
+      case SparseVector(size, indices, values) =>
+        indices.take(DataFrameReportGenerator.maxVectorDisplaySize).zip(values).map {
+          case (index, value) => s"$index: ${DoubleUtils.double2String(value)}"
+        }.mkString("(", ", ", ", ...)")
     }
   }
 
@@ -374,6 +398,7 @@ object DataFrameReportGenerator extends DataFrameReportGenerator {
   val maxColumnsNumberInReport = 10
   val outlierConstant = 1.5
   val doubleTolerance = 0.000001
+  val maxVectorDisplaySize = 3
 }
 
 private case class Quartiles(

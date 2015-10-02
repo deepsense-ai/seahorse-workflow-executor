@@ -18,6 +18,7 @@ package io.deepsense.deeplang.doperables.dataframe
 
 import java.sql.Timestamp
 
+import org.apache.spark.mllib.linalg.Vectors
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.types.{Metadata => SparkMetadata, _}
@@ -26,6 +27,7 @@ import org.joda.time.DateTime
 import io.deepsense.commons.datetime.DateTimeConverter
 import io.deepsense.commons.types.ColumnType
 import io.deepsense.deeplang.DeeplangIntegTestSupport
+import io.deepsense.deeplang.doperables.dataframe.types.SparkConversions
 import io.deepsense.deeplang.doperables.dataframe.types.categorical.{CategoriesMapping, MappingMetadataConverter}
 import io.deepsense.deeplang.doperables.{Report, ReportLevel}
 import io.deepsense.reportlib.model.{CategoricalDistribution, ContinuousDistribution, Statistics, Table}
@@ -94,6 +96,50 @@ class DataFrameReportIntegSpec extends DeeplangIntegTestSupport with DataFrameTe
         dataSampleTable.rowNames shouldBe None
         dataSampleTable.values shouldBe List(List(Some(DateTimeConverter.toString(now))))
       }
+      "there is vector column" in {
+        val now: DateTime = DateTimeConverter.now
+        val vectorColumnName: String = "vectorColumn"
+        val dataFrame = executionContext.dataFrameBuilder.buildDataFrame(
+          StructType(List(StructField(vectorColumnName,
+            SparkConversions.columnTypeToSparkColumnType(ColumnType.vector)))),
+          sparkContext.parallelize(List(
+            Row(Vectors.dense(1.0, 2.0, 3.0)),
+            Row(Vectors.sparse(3, Seq((1 -> 4.0))))
+          )))
+
+        val report = dataFrame.report(executionContext)
+
+        val tables: Map[String, Table] = report.content.tables
+        val dataSampleTable = tables.get(DataFrameReportGenerator.dataSampleTableName).get
+        dataSampleTable.columnNames shouldBe Some(List(vectorColumnName))
+        dataSampleTable.rowNames shouldBe None
+        dataSampleTable.values shouldBe List(
+          List(Some("(1, 2, 3)")),
+          List(Some("(1: 4)"))
+        )
+      }
+      "there is long vector column" in {
+        val now: DateTime = DateTimeConverter.now
+        val vectorColumnName: String = "vectorColumn"
+        val dataFrame = executionContext.dataFrameBuilder.buildDataFrame(
+          StructType(List(StructField(vectorColumnName,
+            SparkConversions.columnTypeToSparkColumnType(ColumnType.vector)))),
+          sparkContext.parallelize(List(
+            Row(Vectors.dense(1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0)),
+            Row(Vectors.sparse(8, Seq((1 -> 9.0), (3 -> 10.0), (5 -> 11.0), (7 -> 13.0))))
+          )))
+
+        val report = dataFrame.report(executionContext)
+
+        val tables: Map[String, Table] = report.content.tables
+        val dataSampleTable = tables.get(DataFrameReportGenerator.dataSampleTableName).get
+        dataSampleTable.columnNames shouldBe Some(List(vectorColumnName))
+        dataSampleTable.rowNames shouldBe None
+        dataSampleTable.values shouldBe List(
+          List(Some("(1, 2, 3, ...)")),
+          List(Some("(1: 9, 3: 10, 5: 11, ...)"))
+        )
+      }
     }
     "generate report with correct column types" in {
       val dataFrame = testDataFrame(executionContext.dataFrameBuilder, sparkContext)
@@ -107,7 +153,8 @@ class DataFrameReportIntegSpec extends DeeplangIntegTestSupport with DataFrameTe
         ColumnType.boolean,
         ColumnType.numeric,
         ColumnType.timestamp,
-        ColumnType.categorical)
+        ColumnType.categorical,
+        ColumnType.vector)
     }
     "generate report with correct column Distribution" in {
       val dataFrame = testDataFrame(executionContext.dataFrameBuilder, sparkContext)
@@ -149,6 +196,7 @@ class DataFrameReportIntegSpec extends DeeplangIntegTestSupport with DataFrameTe
           "1999-11-29T00:43:00.000Z",
           Seq())
       )
+      testEmptyDistribution(report, DataFrameTestFactory.vectorColumnName)
     }
     "generate column Distribution for one value DataFrame" in {
       val dataFrame = oneValueDataFrame(executionContext.dataFrameBuilder, sparkContext)
@@ -190,6 +238,7 @@ class DataFrameReportIntegSpec extends DeeplangIntegTestSupport with DataFrameTe
           "1970-01-20T00:43:00.000Z",
           Seq())
       )
+      testEmptyDistribution(report, DataFrameTestFactory.vectorColumnName)
     }
     "generate correct report" when {
       "DataFrame is empty" in {
