@@ -19,6 +19,7 @@ package io.deepsense.deeplang.doperations
 import java.sql.Timestamp
 
 import org.apache.spark.SparkException
+import org.apache.spark.mllib.linalg.Vectors
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.types._
 import org.joda.time.{DateTime, DateTimeZone}
@@ -27,7 +28,9 @@ import io.deepsense.commons.types.ColumnType
 import io.deepsense.commons.types.ColumnType._
 import io.deepsense.deeplang.DeeplangIntegTestSupport
 import io.deepsense.deeplang.doperables.dataframe.DataFrame
+import io.deepsense.deeplang.doperables.dataframe.types.SparkConversions
 import io.deepsense.deeplang.doperables.dataframe.types.categorical.{CategoricalMapper, CategoriesMapping, MappingMetadataConverter}
+import io.deepsense.deeplang.doperations.exceptions.WrongColumnTypeException
 import io.deepsense.deeplang.parameters._
 
 class ConvertTypeIntegSpec extends DeeplangIntegTestSupport {
@@ -168,6 +171,14 @@ class ConvertTypeIntegSpec extends DeeplangIntegTestSupport {
         }
       }
     }
+    "converting Vector columns" should {
+      "fail" in {
+        a[WrongColumnTypeException] should be thrownBy {
+          useConvertType(Set(vectorId), Set.empty, Set.empty, ColumnType.string)
+            .sparkDataFrame.collect()
+        }
+      }
+    }
   }
 
   override def beforeAll(): Unit = {
@@ -246,6 +257,13 @@ class ConvertTypeIntegSpec extends DeeplangIntegTestSupport {
     ColumnContainer(original, asDouble, asString, original, mapping, metadata)
   }
 
+  val vectorColumn = {
+    val original = Seq(Vectors.dense(1.0, 2.0), null, Vectors.sparse(2, Seq((1, 3.0))))
+    val mapping = CategoriesMapping(Seq.empty)
+    val metadata = MappingMetadataConverter.mappingToMetadata(mapping)
+    ColumnContainer(original, Seq.empty, Seq.empty, Seq.empty, mapping, metadata)
+  }
+
   private def mapSeq(mapping: CategoriesMapping, values: Seq[Any]): Seq[Any] =
     values.map(v => if (v == null) null else mapping.valueToId(v.toString))
 
@@ -267,7 +285,8 @@ class ConvertTypeIntegSpec extends DeeplangIntegTestSupport {
     boolColumn,
     timestampColumn,
     numCategoricalColumn,
-    categoricalColumn
+    categoricalColumn,
+    vectorColumn
   )
 
   val numCategoriesMeta = MappingMetadataConverter
@@ -282,7 +301,8 @@ class ConvertTypeIntegSpec extends DeeplangIntegTestSupport {
     StructField("booleans", BooleanType), // 3
     StructField("timestamps", TimestampType), // 4
     StructField("num categorical", IntegerType, metadata = numCategoriesMeta), // 5
-    StructField("non num categorical", IntegerType, metadata = nonNumCategoriesMeta) // 6
+    StructField("non num categorical", IntegerType, metadata = nonNumCategoriesMeta), // 6
+    StructField("vector column", SparkConversions.columnTypeToSparkColumnType(ColumnType.vector))
   ))
 
   val rowsNumber = 3
@@ -294,6 +314,7 @@ class ConvertTypeIntegSpec extends DeeplangIntegTestSupport {
   val timestampId = 4
   val numCatId = 5
   val nonNumCatId = 6
+  val vectorId = 7
 
   val originalColumns = columns.map(_.original)
   val inputRows = (0 until rowsNumber).map(i => Row.fromSeq(originalColumns.map(_.apply(i))))

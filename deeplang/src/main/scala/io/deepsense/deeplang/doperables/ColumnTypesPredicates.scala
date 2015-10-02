@@ -46,6 +46,14 @@ object ColumnTypesPredicates {
           ColumnType.numeric, ColumnType.categorical))
     }
 
+  def isNotVector: Predicate = (field) =>
+    SparkConversions.sparkColumnTypeToColumnType(field.dataType) match {
+      case ColumnType.vector =>
+        Failure(WrongColumnTypeException(field.name, ColumnType.vector,
+          ColumnType.values.-(ColumnType.vector).toSeq: _*))
+      case _ => Success()
+    }
+
   def isNumericOrBinaryValued: Predicate = (field) =>
     SparkConversions.sparkColumnTypeToColumnType(field.dataType) match {
       case ColumnType.boolean => Success()

@@ -26,6 +26,7 @@ import org.apache.spark.sql.{Column, UserDefinedFunction}
 import io.deepsense.commons.types.ColumnType
 import io.deepsense.deeplang.DOperation.Id
 import io.deepsense.deeplang._
+import io.deepsense.deeplang.doperables.ColumnTypesPredicates
 import io.deepsense.deeplang.doperables.dataframe._
 import io.deepsense.deeplang.doperables.dataframe.types.categorical.{CategoricalMapper, CategoricalMetadata}
 import io.deepsense.deeplang.doperables.dataframe.types.{Conversions, SparkConversions}
@@ -65,6 +66,9 @@ case class ConvertType() extends DOperation1To1[DataFrame, DataFrame] {
     val targetType = ColumnType.withName(targetTypeParameter.selection.get.label)
     val columns = dataFrame
       .getColumnNames(selectedColumnsParameter.value.get)
+
+    columns.foreach(column =>
+      ColumnTypesPredicates.isNotVector(dataFrame.sparkDataFrame.schema(column)).get)
 
     if (targetType == ColumnType.categorical) {
       val metadata = CategoricalMetadata(dataFrame)
