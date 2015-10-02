@@ -11,7 +11,8 @@ Converts types of columns in a DataFrame. It can convert one or more columns at 
 All of the selected columns are converted to the same (selected) type. The conversion is done in
 place.
 
-Supports conversions from all types to String type, Numeric type and Categorical type.
+Supports conversions from all types, except Vector type, to String type, Numeric type and
+Categorical type.
 When a non-string column is converted to Categorical it is first converted to String.
 Every null value stays a null value in the result DataFrame (despite the column type change).
 When a Timestamp column is converted to Numeric then each value is represented
@@ -23,9 +24,9 @@ of a numeric value.
 
 String column can be converted to Numeric as long as all values in the column represent a numeric value.
 
-A column converted to its type is not modified.
-If one or more column can not be converted,
-the operation will fail at runtime with TypeConversionException.
+A column converted to its type is not modified. If one or more columns cannot be converted,
+the operation will fail at runtime with ``TypeConversionException``. Converting Vector columns is
+not supported. Selecting Vector column for conversion will result in ``WrongColumnTypeException``.
 
 **Since**: Seahorse 0.4.0
 
@@ -84,7 +85,8 @@ the operation will fail at runtime with TypeConversionException.
 <td>Columns to convert.
 If one of the columns is selected more than once (eg. by name and by type)
 it will be included only once. When a column selected by name
-or by index does not exist the operation will fail at runtime with <code>ColumnsDoNotExistException</code>.</td>
+or by index does not exist the operation will fail at runtime with <code>ColumnsDoNotExistException</code>.
+Selecting a Vector column will result in ``WrongColumnTypeException``.</td>
 </tr>
 <tr>
 <td><code>target type</code></td>
