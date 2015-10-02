@@ -16,11 +16,14 @@
 
 package io.deepsense.deeplang.doperations
 
+import org.apache.spark.mllib.linalg.Vectors
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.types._
 
+import io.deepsense.commons.types.ColumnType
 import io.deepsense.deeplang._
 import io.deepsense.deeplang.doperables.dataframe.DataFrame
+import io.deepsense.deeplang.doperables.dataframe.types.SparkConversions
 import io.deepsense.deeplang.doperables.dataframe.types.categorical.{CategoricalMapper, CategoricalMetadata}
 import io.deepsense.deeplang.doperations.exceptions.{ColumnDoesNotExistException, ColumnsDoNotExistException, WrongColumnTypeException}
 import io.deepsense.deeplang.parameters._
@@ -179,6 +182,16 @@ class JoinSpec extends DeeplangIntegTestSupport {
           val (ldf, rdf, _, wrongTypeColumnNames) = differentTypesFixture()
           val join = joinWithMultipleColumnSelection(
             wrongTypeColumnNames,
+            Set.empty
+          )
+          executeOperation(join, ldf, rdf)
+        }
+      }
+      "the columns selected by name are of vector type" in {
+        an[WrongColumnTypeException] should be thrownBy {
+          val (ldf, rdf, vectorColumnNames) = vectorColumnFixture()
+          val join = joinWithMultipleColumnSelection(
+            vectorColumnNames,
             Set.empty
           )
           executeOperation(join, ldf, rdf)
@@ -494,6 +507,47 @@ class JoinSpec extends DeeplangIntegTestSupport {
     val ignored = mock[DataFrame]
 
     (ldf, rdf, ignored, joinColumns)
+  }
+
+  def vectorColumnFixture(
+      leftPrefix: Option[String] = leftTablePrefix,
+      rightPrefix: Option[String] = rightTablePrefix): (DataFrame, DataFrame, Set[String]) = {
+    val column1 = "column1"
+    val joinColumns = Set(column1)
+
+    // Left dataframe
+    val colsL = Vector("column2", "column3", column1, "column4")
+    val schemaL = StructType(Seq(
+      StructField(colsL(0), DoubleType),
+      StructField(colsL(1), StringType),
+      StructField(colsL(2), SparkConversions.columnTypeToSparkColumnType(ColumnType.vector)),
+      StructField(colsL(3), DoubleType)
+    ))
+    val rowsL = Seq(
+      (3.5, "a", Vectors.dense(1.5), 5.0),
+      (3.6, "b", Vectors.dense(1.6), 6.0),
+      (3.7, "c", Vectors.dense(1.7), 10.0),
+      (4.6, "d", Vectors.dense(1.6), 9.0),
+      (4.5, "e", Vectors.dense(1.5), 11.0)
+    ).map(Row.fromTuple)
+    val ldf = createDataFrame(rowsL, schemaL)
+
+    // Right dataframe
+    val colsR = Vector(column1, "column22", "column5")
+    val schemaR = StructType(Seq(
+      StructField(colsR(0), SparkConversions.columnTypeToSparkColumnType(ColumnType.vector)),
+      StructField(colsR(1), DoubleType),
+      StructField(colsR(2), StringType)
+    ))
+    val rowsR = Seq(
+      (Vectors.dense(1.6), 2.6, "two"),
+      (Vectors.dense(1.7), 2.7, "three"),
+      (Vectors.dense(1.5), 2.5, "one"),
+      (Vectors.dense(1.5), 3.5, "four")
+    ).map(Row.fromTuple)
+    val rdf = createDataFrame(rowsR, schemaR)
+
+    (ldf, rdf, joinColumns)
   }
 
   def joinColumnsIsEmptyFixture(): (DataFrame, DataFrame, DataFrame, Set[String]) = {

@@ -23,6 +23,7 @@ import org.apache.spark.sql
 import org.apache.spark.sql.{Column, Row}
 
 import io.deepsense.deeplang.DOperation.Id
+import io.deepsense.deeplang.doperables.ColumnTypesPredicates
 import io.deepsense.deeplang.doperables.dataframe.DataFrame
 import io.deepsense.deeplang.doperables.dataframe.types.SparkConversions
 import io.deepsense.deeplang.doperables.dataframe.types.categorical.CategoricalMetadata
@@ -66,9 +67,15 @@ case class Join() extends DOperation2To1[DataFrame, DataFrame, DataFrame] with J
 
     logger.debug("Validate types of columns used to join two DataFrames")
     leftJoinColumnNames.zip(rightJoinColumnNames).foreach { case (leftCol, rightCol) => {
+      val leftColumnSchema = lsdf.schema.apply(leftCol)
+      val rightColumnSchema = rsdf.schema.apply(rightCol)
+
+      ColumnTypesPredicates.isNotVector(leftColumnSchema).get
+      ColumnTypesPredicates.isNotVector(rightColumnSchema).get
+
       DataFrame.assertExpectedColumnType(
-        lsdf.schema.apply(leftCol),
-        SparkConversions.sparkColumnTypeToColumnType(rsdf.schema.apply(rightCol).dataType))
+        leftColumnSchema,
+        SparkConversions.sparkColumnTypeToColumnType(rightColumnSchema.dataType))
     }}
 
     logger.debug("Append prefixes to columns from left table")

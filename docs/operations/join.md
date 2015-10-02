@@ -15,8 +15,8 @@ Order of the columns is preserved.
 The operation joins two DataFrames by the column pairs given in ``join columns`` parameter.
 For each given pair, both columns must be of the same type. If column pairs in ``join columns``
 are not present in their DataFrames (left DataFrame and right DataFrame, respectively),
-``ColumnDoesNotExistException`` is thrown. If columns from one pair are of different types,
-``WrongColumnTypeException`` is thrown.
+``ColumnDoesNotExistException`` is thrown. If columns from one pair are of different types
+or either column in any pair is of Vector type, ``WrongColumnTypeException`` is thrown.
 
 The join operation skips ``null`` values in left join, i.e. ``null`` s do not match and yield rows.
 
@@ -88,7 +88,8 @@ are renamed by prepending prefix proper for the table, which they come from.
    <code>right column: <a href="../parameters.html#single_column_selector">SingleColumnSelector</a></code>) defining condition for the JOIN operation.
    Empty join condition is not supported and exception <code>ColumnDoesNotExistException</code> is thrown.
    When a column selected by name or by index does not exist, <code>ColumnDoesNotExistException</code> is thrown.
-   When the type of columns to LEFT JOIN upon in two DataFrames do not match,
+   When the type of columns to LEFT JOIN upon in two DataFrames do not match
+   or either column in any pair is of Vector type,
    <code>WrongColumnTypeException</code> is thrown.</td>
 </tr>
 <tr>
