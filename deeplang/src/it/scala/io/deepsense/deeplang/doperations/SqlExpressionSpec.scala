@@ -16,11 +16,16 @@
 
 package io.deepsense.deeplang.doperations
 
-import io.deepsense.deeplang.DeeplangIntegTestSupport
-import io.deepsense.deeplang.doperables.dataframe.DataFrame
-import io.deepsense.deeplang.doperables.dataframe.types.categorical.CategoricalMetadata
+import org.apache.spark.mllib.linalg.Vectors
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.types._
+
+import io.deepsense.commons.types.ColumnType
+import io.deepsense.deeplang.DeeplangIntegTestSupport
+import io.deepsense.deeplang.doperables.dataframe.DataFrame
+import io.deepsense.deeplang.doperables.dataframe.types.SparkConversions
+import io.deepsense.deeplang.doperables.dataframe.types.categorical.CategoricalMetadata
+import io.deepsense.deeplang.doperables.dataframe.types.vector.{VectorMetadata, VectorMetadataConverter}
 
 class SqlExpressionSpec extends DeeplangIntegTestSupport {
 
@@ -32,6 +37,7 @@ class SqlExpressionSpec extends DeeplangIntegTestSupport {
   val secondColumn = "secondColumn"
   val thirdColumn = "thirdColumn"
   val categoricalColumn = "categoricalColumn"
+  val vectorColumn = "vectorColumn"
 
   val schema = StructType(Seq(
     StructField(firstColumn, StringType),
@@ -91,6 +97,42 @@ class SqlExpressionSpec extends DeeplangIntegTestSupport {
       val outputMetadata = CategoricalMetadata(result)
       outputMetadata.mappingById shouldBe inputMetadata.mappingById
       outputMetadata.mappingByName shouldBe inputMetadata.mappingByName
+    }
+    "handle vector type in DataFrame" in {
+      val schema = StructType(Seq(
+        StructField(firstColumn, StringType),
+        StructField(secondColumn, DoubleType),
+        StructField(thirdColumn, BooleanType),
+        StructField(categoricalColumn, StringType),
+        StructField(vectorColumn,
+          SparkConversions.columnTypeToSparkColumnType(ColumnType.vector),
+          metadata = VectorMetadataConverter.toSchemaMetadata(VectorMetadata(3)))
+      ))
+
+      val data = Seq(
+        Row("c",  5.0,  true,  "true",  Vectors.dense(1.0, 2.0, 3.0)),
+        Row("a",  5.0,  null,  "true",  Vectors.sparse(3, Seq((1, 4.0)))),
+        Row("b",  null, false, "false", Vectors.dense(5.0, 6.0, 7.0)),
+        Row(null, 2.1,  true,  "false", Vectors.sparse(3, Seq((2, 8.0))))
+      )
+      val dataFrame = createDataFrame(data, schema)
+
+      val result = executeSqlExpression(
+        s"select $secondColumn,$vectorColumn from $dataFrameId",
+        dataFrameId, dataFrame)
+
+      result.sparkDataFrame.schema shouldBe StructType(Seq(
+        StructField(secondColumn, DoubleType),
+        StructField(vectorColumn,
+          SparkConversions.columnTypeToSparkColumnType(ColumnType.vector),
+          metadata = VectorMetadataConverter.toSchemaMetadata(VectorMetadata(3)))
+      ))
+      result.sparkDataFrame.rdd.collect shouldBe Array(
+        Row(5.0,  Vectors.dense(1.0, 2.0, 3.0)),
+        Row(5.0,  Vectors.sparse(3, Seq((1, 4.0)))),
+        Row(null, Vectors.dense(5.0, 6.0, 7.0)),
+        Row(2.1,  Vectors.sparse(3, Seq((2, 8.0))))
+      )
     }
   }
 
