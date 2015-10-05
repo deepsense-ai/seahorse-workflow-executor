@@ -16,12 +16,16 @@
 
 package io.deepsense.deeplang.doperations
 
+import org.apache.spark.mllib.linalg.Vectors
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.types.{DoubleType, StringType, StructField, StructType}
 
+import io.deepsense.commons.types.ColumnType
 import io.deepsense.deeplang.DeeplangIntegTestSupport
 import io.deepsense.deeplang.doperables.dataframe.DataFrame
+import io.deepsense.deeplang.doperables.dataframe.types.SparkConversions
 import io.deepsense.deeplang.doperables.dataframe.types.categorical.CategoricalMetadata
+import io.deepsense.deeplang.doperables.dataframe.types.vector.{VectorMetadata, VectorMetadataConverter}
 import io.deepsense.deeplang.doperations.exceptions.SchemaMismatchException
 
 class UnionIntegSpec extends DeeplangIntegTestSupport {
@@ -97,6 +101,53 @@ class UnionIntegSpec extends DeeplangIntegTestSupport {
       CategoricalMetadata(merged).mapping("column2") shouldBe column2FinalMapping
     }
 
+    "return a union of two DataFrames containing vector columns" in {
+
+      val schema1 = StructType(List(
+        StructField("column1", StringType),
+        StructField("column2",
+          SparkConversions.columnTypeToSparkColumnType(ColumnType.vector),
+          metadata = VectorMetadataConverter.toSchemaMetadata(VectorMetadata(3)))))
+
+      val rows1_1 = Seq(
+        Row("value 1", Vectors.dense(13.0, 14.0, 15.0)),
+        Row("value 2", Vectors.dense(23.0, 24.0, 25.0))
+      )
+
+      val schema2 = StructType(List(
+        StructField("column1", StringType),
+        StructField("column2",
+          SparkConversions.columnTypeToSparkColumnType(ColumnType.vector),
+          metadata = VectorMetadataConverter.toSchemaMetadata(VectorMetadata(3)))))
+
+      val rows2_1 = Seq(
+        Row("value 3", Vectors.dense(33.0, 34.0, 35.0)),
+        Row("value 4", Vectors.dense(43.0, 44.0, 45.0))
+      )
+
+      val df1 = createDataFrame(rows1_1, schema1)
+      val df2 = createDataFrame(rows2_1, schema2)
+
+      val merged = Union()
+        .execute(executionContext)(Vector(df1, df2))
+        .head.asInstanceOf[DataFrame]
+
+      merged.sparkDataFrame.schema shouldBe StructType(List(
+        StructField("column1", StringType),
+        StructField("column2",
+          SparkConversions.columnTypeToSparkColumnType(ColumnType.vector),
+          metadata = VectorMetadataConverter.toSchemaMetadata(VectorMetadata(3)))))
+
+      val mergedRows = merged.sparkDataFrame.rdd.collect()
+
+      mergedRows shouldBe Array(
+        Row("value 1", Vectors.dense(13.0, 14.0, 15.0)),
+        Row("value 2", Vectors.dense(23.0, 24.0, 25.0)),
+        Row("value 3", Vectors.dense(33.0, 34.0, 35.0)),
+        Row("value 4", Vectors.dense(43.0, 44.0, 45.0))
+      )
+    }
+
     "throw for identical schemas and one DF having a categorical column" in {
       val rows2_1 = Seq(
         Row(1.1, 1.0),
@@ -119,6 +170,42 @@ class UnionIntegSpec extends DeeplangIntegTestSupport {
       val rows2_1 = Seq(
         Row("a", 1.0),
         Row("b", 1.0)
+      )
+
+      val df1 = createDataFrame(rows1_1, schema1)
+      val df2 = createDataFrame(rows2_1, schema2)
+
+      a [SchemaMismatchException] should be thrownBy {
+        Union().execute(executionContext)(Vector(df1, df2))
+      }
+    }
+
+    "throw for vectors of different lengths in DataFrames" in {
+
+      val schema1 = StructType(List(
+        StructField("column1",
+          SparkConversions.columnTypeToSparkColumnType(ColumnType.vector),
+          metadata = VectorMetadataConverter.toSchemaMetadata(VectorMetadata(2))),
+        StructField("column2",
+          SparkConversions.columnTypeToSparkColumnType(ColumnType.vector),
+          metadata = VectorMetadataConverter.toSchemaMetadata(VectorMetadata(3)))))
+
+      val rows1_1 = Seq(
+        Row(Vectors.dense(11.0, 12.0), Vectors.dense(13.0, 14.0, 15.0)),
+        Row(Vectors.dense(21.0, 22.0), Vectors.dense(23.0, 24.0, 25.0))
+      )
+
+      val schema2 = StructType(List(
+        StructField("column1",
+          SparkConversions.columnTypeToSparkColumnType(ColumnType.vector),
+          metadata = VectorMetadataConverter.toSchemaMetadata(VectorMetadata(2))),
+        StructField("column2",
+          SparkConversions.columnTypeToSparkColumnType(ColumnType.vector),
+          metadata = VectorMetadataConverter.toSchemaMetadata(VectorMetadata(2)))))
+
+      val rows2_1 = Seq(
+        Row(Vectors.dense(11.0, 12.0), Vectors.dense(13.0, 14.0)),
+        Row(Vectors.dense(21.0, 22.0), Vectors.dense(23.0, 24.0))
       )
 
       val df1 = createDataFrame(rows1_1, schema1)

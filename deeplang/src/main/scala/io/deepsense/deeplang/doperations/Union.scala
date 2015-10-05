@@ -24,7 +24,8 @@ import org.apache.spark.sql.types.{Metadata, StructField, StructType}
 import io.deepsense.commons.types.ColumnType
 import io.deepsense.deeplang.DOperation.Id
 import io.deepsense.deeplang.doperables.dataframe.types.categorical.{CategoricalMetadata, MappingMetadataConverter}
-import io.deepsense.deeplang.doperables.dataframe.{DataFrame, DataFrameMetadata}
+import io.deepsense.deeplang.doperables.dataframe.types.vector.VectorMetadata
+import io.deepsense.deeplang.doperables.dataframe.{VectorColumnMetadata, DataFrame, DataFrameMetadata}
 import io.deepsense.deeplang.doperations.exceptions.SchemaMismatchException
 import ColumnType.ColumnType
 import io.deepsense.deeplang.parameters.ParametersSchema
@@ -54,7 +55,7 @@ case class Union() extends DOperation2To1[DataFrame, DataFrame, DataFrame] {
   }
 
   /**
-   * Basic schema comparison: column names and types
+   * Basic schema comparison: column names, types and vector metadata
    */
   private def assertSchemaSimilarity(first: DataFrame, second: DataFrame): Unit = {
     val firstSchema = first.sparkDataFrame.schema
@@ -63,12 +64,15 @@ case class Union() extends DOperation2To1[DataFrame, DataFrame, DataFrame] {
     def withNoMeta(f: StructField): StructField =
       f.copy(metadata = Metadata.empty)
 
-    def columnTypes(schema: StructType): Seq[Option[ColumnType]] =
-      DataFrameMetadata.fromSchema(schema).orderedColumns.map(_.columnType)
+    def columnMetadata(schema: StructType): Seq[(Option[ColumnType], Option[VectorMetadata])] =
+      DataFrameMetadata.fromSchema(schema).orderedColumns.map {
+        case v: VectorColumnMetadata => (v.columnType, v.vectorMetadata)
+        case m => (m.columnType, None)
+      }
 
     val similar =
       (firstSchema.fields.map(withNoMeta) sameElements secondSchema.fields.map(withNoMeta)) &&
-      columnTypes(firstSchema) == columnTypes(secondSchema)
+        columnMetadata(firstSchema) == columnMetadata(secondSchema)
 
     if (!similar) {
       throw new SchemaMismatchException(
