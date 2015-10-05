@@ -25,7 +25,7 @@ import io.deepsense.deeplang.DeeplangIntegTestSupport
 import io.deepsense.deeplang.doperables.dataframe.DataFrame
 import io.deepsense.deeplang.doperables.dataframe.types.SparkConversions
 import io.deepsense.deeplang.doperables.dataframe.types.categorical.CategoricalMetadata
-import io.deepsense.deeplang.doperables.dataframe.types.vector.{VectorMetadata, VectorMetadataConverter}
+import io.deepsense.deeplang.doperables.dataframe.types.vector.VectorColumnMetadata
 import io.deepsense.deeplang.doperations.exceptions.SchemaMismatchException
 
 class UnionIntegSpec extends DeeplangIntegTestSupport {
@@ -107,7 +107,7 @@ class UnionIntegSpec extends DeeplangIntegTestSupport {
         StructField("column1", StringType),
         StructField("column2",
           SparkConversions.columnTypeToSparkColumnType(ColumnType.vector),
-          metadata = VectorMetadataConverter.toSchemaMetadata(VectorMetadata(3)))))
+          metadata = VectorColumnMetadata(3).toSparkMetadata())))
 
       val rows1_1 = Seq(
         Row("value 1", Vectors.dense(13.0, 14.0, 15.0)),
@@ -118,7 +118,7 @@ class UnionIntegSpec extends DeeplangIntegTestSupport {
         StructField("column1", StringType),
         StructField("column2",
           SparkConversions.columnTypeToSparkColumnType(ColumnType.vector),
-          metadata = VectorMetadataConverter.toSchemaMetadata(VectorMetadata(3)))))
+          metadata =  VectorColumnMetadata(3).toSparkMetadata())))
 
       val rows2_1 = Seq(
         Row("value 3", Vectors.dense(33.0, 34.0, 35.0)),
@@ -136,7 +136,7 @@ class UnionIntegSpec extends DeeplangIntegTestSupport {
         StructField("column1", StringType),
         StructField("column2",
           SparkConversions.columnTypeToSparkColumnType(ColumnType.vector),
-          metadata = VectorMetadataConverter.toSchemaMetadata(VectorMetadata(3)))))
+          metadata =  VectorColumnMetadata(3).toSparkMetadata())))
 
       val mergedRows = merged.sparkDataFrame.rdd.collect()
 
@@ -185,10 +185,10 @@ class UnionIntegSpec extends DeeplangIntegTestSupport {
       val schema1 = StructType(List(
         StructField("column1",
           SparkConversions.columnTypeToSparkColumnType(ColumnType.vector),
-          metadata = VectorMetadataConverter.toSchemaMetadata(VectorMetadata(2))),
+          metadata =  VectorColumnMetadata(2).toSparkMetadata()),
         StructField("column2",
           SparkConversions.columnTypeToSparkColumnType(ColumnType.vector),
-          metadata = VectorMetadataConverter.toSchemaMetadata(VectorMetadata(3)))))
+          metadata = VectorColumnMetadata(3).toSparkMetadata())))
 
       val rows1_1 = Seq(
         Row(Vectors.dense(11.0, 12.0), Vectors.dense(13.0, 14.0, 15.0)),
@@ -198,10 +198,10 @@ class UnionIntegSpec extends DeeplangIntegTestSupport {
       val schema2 = StructType(List(
         StructField("column1",
           SparkConversions.columnTypeToSparkColumnType(ColumnType.vector),
-          metadata = VectorMetadataConverter.toSchemaMetadata(VectorMetadata(2))),
+          metadata = VectorColumnMetadata(3).toSparkMetadata()),
         StructField("column2",
           SparkConversions.columnTypeToSparkColumnType(ColumnType.vector),
-          metadata = VectorMetadataConverter.toSchemaMetadata(VectorMetadata(2)))))
+          metadata =  VectorColumnMetadata(2).toSparkMetadata())))
 
       val rows2_1 = Seq(
         Row(Vectors.dense(11.0, 12.0), Vectors.dense(13.0, 14.0)),

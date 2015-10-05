@@ -16,7 +16,7 @@
 
 package io.deepsense.deeplang.doperables.dataframe.types.vector
 
-import org.apache.spark.mllib.linalg.{SparseVector, DenseVector}
+import org.apache.spark.mllib.linalg.{DenseVector, SparseVector}
 import org.apache.spark.sql.types.{StructField, StructType}
 
 import io.deepsense.commons.types.ColumnType
@@ -49,7 +49,7 @@ trait VectorMetadataInference {
       case (field@StructField(_, dataType, _, _), Some(length))
         if SparkConversions.sparkColumnTypeToColumnType(dataType) == ColumnType.vector =>
         field.copy(
-          metadata = VectorMetadataConverter.toSchemaMetadata(VectorMetadata(length)))
+          metadata = VectorColumnMetadata(length).toSparkMetadata())
       case (field, _) => field
     })
 

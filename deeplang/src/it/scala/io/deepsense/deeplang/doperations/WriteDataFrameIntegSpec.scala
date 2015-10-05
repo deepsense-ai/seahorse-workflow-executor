@@ -29,7 +29,7 @@ import io.deepsense.commons.datetime.DateTimeConverter
 import io.deepsense.commons.types.ColumnType
 import io.deepsense.deeplang.DeeplangIntegTestSupport
 import io.deepsense.deeplang.doperables.dataframe.types.SparkConversions
-import io.deepsense.deeplang.doperables.dataframe.types.categorical.{CategoriesMapping, MappingMetadataConverter}
+import io.deepsense.deeplang.doperables.dataframe.types.categorical.CategoricalColumnMetadata
 import io.deepsense.deeplang.doperations.CsvParameters.ColumnSeparator
 import io.deepsense.deeplang.doperations.CsvParameters.ColumnSeparator.ColumnSeparator
 
@@ -47,7 +47,7 @@ class WriteDataFrameIntegSpec
       SparkConversions.columnTypeToSparkColumnType(ColumnType.boolean)),
     StructField("categorical",
       SparkConversions.columnTypeToSparkColumnType(ColumnType.categorical),
-      metadata = MappingMetadataConverter.mappingToMetadata(CategoriesMapping(Seq("A", "B", "C")))),
+      metadata = CategoricalColumnMetadata("A", "B", "C").toSparkMetadata()),
     StructField("numeric",
       SparkConversions.columnTypeToSparkColumnType(ColumnType.numeric)),
     StructField("string",

@@ -21,9 +21,9 @@ import org.apache.spark.sql.types._
 import org.scalactic.EqualityPolicy.Spread
 import org.scalatest.BeforeAndAfter
 
-import io.deepsense.deeplang.doperables.dataframe.types.categorical.{CategoriesMapping, MappingMetadataConverter}
-import io.deepsense.deeplang.doperables.machinelearning.randomforest.classification.{UntrainedRandomForestClassification, TrainedRandomForestClassification}
+import io.deepsense.deeplang.doperables.dataframe.types.categorical.CategoricalColumnMetadata
 import io.deepsense.deeplang.doperables.machinelearning.randomforest.RandomForestParameters
+import io.deepsense.deeplang.doperables.machinelearning.randomforest.classification.{TrainedRandomForestClassification, UntrainedRandomForestClassification}
 import io.deepsense.deeplang.doperations.exceptions.{ColumnDoesNotExistException, ColumnsDoNotExistException, WrongColumnTypeException}
 import io.deepsense.deeplang.parameters.{MultipleColumnSelection, NameColumnSelection, NameSingleColumnSelection}
 import io.deepsense.deeplang.{DeeplangIntegTestSupport, ExecutionContext}
@@ -62,7 +62,7 @@ class UntrainedRandomForestClassificationIntegSpec
       StructField("column2", StringType),
       StructField("column3", DoubleType),
       StructField("column4", IntegerType,
-        metadata = MappingMetadataConverter.mappingToMetadata(CategoriesMapping(Seq("A", "B", "C")))
+        metadata = CategoricalColumnMetadata("A", "B", "C").toSparkMetadata()
       ),
       StructField("column5", BooleanType),
       StructField("column0", DoubleType)

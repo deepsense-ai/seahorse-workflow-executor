@@ -18,8 +18,12 @@ package io.deepsense.deeplang.doperations.exceptions
 
 import io.deepsense.commons.types.ColumnType.ColumnType
 
-case class WrongReplacementValueException(value: String, colName: String, colType: ColumnType)
+case class WrongReplacementValueException(
+    value: String,
+    colName: String,
+    colType: ColumnType,
+    override val cause: Option[Throwable] = None)
   extends DOperationExecutionException(
     "Replacement value \"" + value + "\" can't be placed in column \"" + colName + "\" " +
       "of type \"" + colType.toString + "\"",
-    None)
+    cause)

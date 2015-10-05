@@ -48,6 +48,8 @@ case class DataFrame private[dataframe] (
 
   def this() = this(null)
 
+  def schema: StructType = sparkDataFrame.schema
+
   override def metadata: Option[DataFrameMetadata] =
     Option(DataFrameMetadata.fromSchema(sparkDataFrame.schema))
 

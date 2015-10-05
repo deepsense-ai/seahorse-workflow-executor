@@ -28,7 +28,7 @@ import org.mockito.stubbing.Answer
 
 import io.deepsense.deeplang.DeeplangIntegTestSupport
 import io.deepsense.deeplang.doperables.dataframe.DataFrame
-import io.deepsense.deeplang.doperables.dataframe.types.categorical.{CategoriesMapping, MappingMetadataConverter}
+import io.deepsense.deeplang.doperables.dataframe.types.categorical.{CategoricalColumnMetadata, CategoriesMapping}
 import io.deepsense.deeplang.doperables.machinelearning.randomforest.classification.TrainedRandomForestClassification
 import io.deepsense.deeplang.doperations.exceptions.{ColumnsDoNotExistException, WrongColumnTypeException}
 
@@ -91,7 +91,7 @@ class TrainedRandomForestClassificationIntegSpec extends DeeplangIntegTestSuppor
       StructField(inputColumnNames(2), StringType),
       StructField(inputColumnNames(3), DoubleType),
       StructField(inputColumnNames(4), IntegerType,
-        metadata = MappingMetadataConverter.mappingToMetadata(CategoriesMapping(Seq("A", "B", "C")))
+        metadata = CategoricalColumnMetadata("A", "B", "C").toSparkMetadata()
       )
     ))
     val inputDataframe = createDataFrame(inputRowsSeq, inputSchema)

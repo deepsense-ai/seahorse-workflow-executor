@@ -21,8 +21,8 @@ import org.apache.spark.sql.types._
 
 import io.deepsense.commons.types.ColumnType
 import io.deepsense.deeplang.UnitSpec
-import io.deepsense.deeplang.doperables.dataframe.types.categorical.{CategoriesMapping, MappingMetadataConverter}
-import io.deepsense.deeplang.doperables.dataframe.types.vector.{VectorMetadata, VectorMetadataConverter}
+import io.deepsense.deeplang.doperables.dataframe.types.categorical.{CategoricalColumnMetadata, CategoriesMapping}
+import io.deepsense.deeplang.doperables.dataframe.types.vector.VectorColumnMetadata
 import io.deepsense.deeplang.doperations.exceptions.{ColumnDoesNotExistException, ColumnsDoNotExistException}
 import io.deepsense.deeplang.inference.exceptions.NameNotUniqueException
 import io.deepsense.deeplang.inference.{MultipleColumnsMayNotExistWarning, SingleColumnMayNotExistWarning}
@@ -30,14 +30,14 @@ import io.deepsense.deeplang.parameters._
 
 class DataFrameMetadataSpec extends UnitSpec {
 
+  val categoricalMetadata = List(
+    CategoricalColumnMetadata(CategoriesMapping(Seq("A", "B", "C"))),
+    CategoricalColumnMetadata(CategoriesMapping(Seq("cat", "dog")))
+  )
+
+  val vectorMetadata = VectorColumnMetadata(54321987654L)
+
   "DataFrameMetadata" should {
-
-    val mappings = List(
-      CategoriesMapping(Seq("A", "B", "C")),
-      CategoriesMapping(Seq("cat", "dog"))
-    )
-
-    val vectorMetadata = VectorMetadata(54321987654L)
 
     val schema = StructType(Seq(
       StructField(
@@ -46,34 +46,34 @@ class DataFrameMetadataSpec extends UnitSpec {
       StructField(
         "categorical_1",
         IntegerType,
-        metadata = MappingMetadataConverter.mappingToMetadata(mappings(0))),
+        metadata = categoricalMetadata(0).toSparkMetadata()),
       StructField(
         "string_column",
         StringType),
       StructField(
         "categorical_2",
         IntegerType,
-        metadata = MappingMetadataConverter.mappingToMetadata(mappings(1))),
+        metadata = categoricalMetadata(1).toSparkMetadata()),
       StructField(
         "vector_column",
         new VectorUDT(),
-        metadata = VectorMetadataConverter.toSchemaMetadata(vectorMetadata))
+        metadata = vectorMetadata.toSparkMetadata())
     ))
 
     val metadata = DataFrameMetadata(
       isExact = true,
       isColumnCountExact = true,
       columns = Map(
-        "num_column" -> CommonColumnMetadata(
+        "num_column" -> ColumnKnowledge(
           name = "num_column", index = Some(0), columnType = Some(ColumnType.numeric)),
-        "categorical_1" -> CategoricalColumnMetadata(
-          name = "categorical_1", index = Some(1), categories = Some(mappings(0))),
-        "string_column" -> CommonColumnMetadata(
+        "categorical_1" -> ColumnKnowledge.categorical(
+          name = "categorical_1", index = Some(1), metadata = Some(categoricalMetadata(0))),
+        "string_column" -> ColumnKnowledge(
           name = "string_column", index = Some(2), columnType = Some(ColumnType.string)),
-        "categorical_2" -> CategoricalColumnMetadata(
-          name = "categorical_2", index = Some(3), categories = Some(mappings(1))),
-        "vector_column" -> VectorColumnMetadata(
-          name = "vector_column", index = Some(4), vectorMetadata = Some(vectorMetadata)
+        "categorical_2" -> ColumnKnowledge.categorical(
+          name = "categorical_2", index = Some(3), metadata = Some(categoricalMetadata(1))),
+        "vector_column" -> ColumnKnowledge.vector(
+          name = "vector_column", index = Some(4), metadata = Some(vectorMetadata)
         )
       )
     )
@@ -286,33 +286,28 @@ class DataFrameMetadataSpec extends UnitSpec {
     }
   }
 
-  val mappings = List(
-    CategoriesMapping(Seq("A", "B", "C")),
-    CategoriesMapping(Seq("cat", "dog"))
-  )
-
-  val numericColumn = CommonColumnMetadata(
+  val numericColumn = ColumnKnowledge(
     name = "num_column", index = Some(0), columnType = Some(ColumnType.numeric))
 
-  val categoricalColumn1 = CategoricalColumnMetadata(
-    name = "categorical_1", index = Some(1), categories = Some(mappings(0)))
+  val categoricalColumn1 = ColumnKnowledge.categorical(
+    name = "categorical_1", index = Some(1), metadata = Some(categoricalMetadata(0)))
 
-  val stringColumn = CommonColumnMetadata(
+  val stringColumn = ColumnKnowledge(
     name = "string_column", index = Some(2), columnType = Some(ColumnType.string))
 
-  val categoricalColumn2 = CategoricalColumnMetadata(
-    name = "categorical_2", index = Some(3), categories = Some(mappings(1)))
+  val categoricalColumn2 = ColumnKnowledge.categorical(
+    name = "categorical_2", index = Some(3), metadata = Some(categoricalMetadata(1)))
 
-  val numericColumnWithUnknownIndex = CommonColumnMetadata(
+  val numericColumnWithUnknownIndex = ColumnKnowledge(
     name = "num_unknown_index", index = None, columnType = Some(ColumnType.numeric))
 
-  val categoricalColumnWithUnknownIndex = CategoricalColumnMetadata(
-    name = "categorical_unknown_index", index = None, categories = Some(mappings(1)))
+  val categoricalColumnWithUnknownIndex = ColumnKnowledge.categorical(
+    name = "categorical_unknown_index", index = None, metadata = Some(categoricalMetadata(1)))
 
-  val categoricalColumnWithUnknownCategories = CategoricalColumnMetadata(
-    name = "categorical_unknown_categories", index = Some(4), categories = None)
+  val categoricalColumnWithUnknownCategories = ColumnKnowledge.categorical(
+    name = "categorical_unknown_categories", index = Some(4), metadata = None)
 
-  val columnWithUnknownType = CommonColumnMetadata(
+  val columnWithUnknownType = ColumnKnowledge(
     name = "unknown_type", index = Some(5), columnType = None)
 
 
@@ -323,14 +318,14 @@ class DataFrameMetadataSpec extends UnitSpec {
     StructField(
       categoricalColumn1.name,
       IntegerType,
-      metadata = MappingMetadataConverter.mappingToMetadata(mappings(0))),
+      metadata = categoricalMetadata(0).toSparkMetadata()),
     StructField(
       stringColumn.name,
       StringType),
     StructField(
       categoricalColumn2.name,
       IntegerType,
-      metadata = MappingMetadataConverter.mappingToMetadata(mappings(1)))
+      metadata = categoricalMetadata(1).toSparkMetadata())
   ))
 
   val metadata = DataFrameMetadata(
@@ -365,16 +360,16 @@ class DataFrameMetadataSpec extends UnitSpec {
           isExact = false,
           isColumnCountExact = false,
           columns = Map(
-            "num_col" -> CommonColumnMetadata("num_col", Some(0), Some(ColumnType.numeric))))
+            "num_col" -> ColumnKnowledge("num_col", Some(0), Some(ColumnType.numeric))))
 
-        val columnToAdd = CommonColumnMetadata("some_col", Some(100), Some(ColumnType.string))
+        val columnToAdd = ColumnKnowledge("some_col", Some(100), Some(ColumnType.string))
 
         val expectedMetadata = DataFrameMetadata(
           isExact = false,
           isColumnCountExact = false,
           columns = Map(
-            "num_col" -> CommonColumnMetadata("num_col", Some(0), Some(ColumnType.numeric)),
-            "some_col" -> CommonColumnMetadata("some_col", None, Some(ColumnType.string))))
+            "num_col" -> ColumnKnowledge("num_col", Some(0), Some(ColumnType.numeric)),
+            "some_col" -> ColumnKnowledge("some_col", None, Some(ColumnType.string))))
 
         metadata.appendColumn(columnToAdd) shouldBe expectedMetadata
       }
@@ -384,16 +379,16 @@ class DataFrameMetadataSpec extends UnitSpec {
           isExact = false,
           isColumnCountExact = true,
           columns = Map(
-            "num_col" -> CommonColumnMetadata("num_col", Some(0), Some(ColumnType.numeric))))
+            "num_col" -> ColumnKnowledge("num_col", Some(0), Some(ColumnType.numeric))))
 
-        val columnToAdd = CommonColumnMetadata("some_col", Some(100), Some(ColumnType.string))
+        val columnToAdd = ColumnKnowledge("some_col", Some(100), Some(ColumnType.string))
 
         val expectedMetadata = DataFrameMetadata(
           isExact = false,
           isColumnCountExact = true,
           columns = Map(
-            "num_col" -> CommonColumnMetadata("num_col", Some(0), Some(ColumnType.numeric)),
-            "some_col" -> CommonColumnMetadata("some_col", Some(1), Some(ColumnType.string))))
+            "num_col" -> ColumnKnowledge("num_col", Some(0), Some(ColumnType.numeric)),
+            "some_col" -> ColumnKnowledge("some_col", Some(1), Some(ColumnType.string))))
 
         metadata.appendColumn(columnToAdd) shouldBe expectedMetadata
       }
@@ -405,9 +400,9 @@ class DataFrameMetadataSpec extends UnitSpec {
           isExact = false,
           isColumnCountExact = false,
           columns = Map(
-            name -> CommonColumnMetadata(name, Some(0), Some(ColumnType.numeric))))
+            name -> ColumnKnowledge(name, Some(0), Some(ColumnType.numeric))))
 
-        val columnToAdd = CommonColumnMetadata(name, None, Some(ColumnType.string))
+        val columnToAdd = ColumnKnowledge(name, None, Some(ColumnType.string))
 
         val exception = the [NameNotUniqueException] thrownBy {
           metadata.appendColumn(columnToAdd)

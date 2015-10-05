@@ -28,7 +28,7 @@ import io.deepsense.commons.datetime.DateTimeConverter
 import io.deepsense.commons.types.ColumnType
 import io.deepsense.deeplang.DeeplangIntegTestSupport
 import io.deepsense.deeplang.doperables.dataframe.types.SparkConversions
-import io.deepsense.deeplang.doperables.dataframe.types.categorical.{CategoriesMapping, MappingMetadataConverter}
+import io.deepsense.deeplang.doperables.dataframe.types.categorical.{CategoricalColumnMetadata, CategoriesMapping}
 import io.deepsense.deeplang.doperables.{Report, ReportLevel}
 import io.deepsense.reportlib.model.{CategoricalDistribution, ContinuousDistribution, Statistics, Table}
 
@@ -244,7 +244,7 @@ class DataFrameReportIntegSpec extends DeeplangIntegTestSupport with DataFrameTe
       "DataFrame is empty" in {
         val categories = Seq("red", "blue", "green")
         val mapping = CategoriesMapping(categories)
-        val metadata = MappingMetadataConverter.mappingToMetadata(mapping, SparkMetadata.empty)
+        val metadata = CategoricalColumnMetadata(mapping).toSparkMetadata()
         val schema = StructType(Seq(
           StructField("string", StringType),
           StructField("numeric", DoubleType),

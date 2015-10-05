@@ -27,9 +27,8 @@ import io.deepsense.commons.types.ColumnType
 import io.deepsense.deeplang.DeeplangIntegTestSupport
 import io.deepsense.deeplang.doperables.dataframe.DataFrame
 import io.deepsense.deeplang.doperables.dataframe.types.SparkConversions
-import io.deepsense.deeplang.doperables.dataframe.types.categorical.{CategoriesMapping, MappingMetadataConverter}
-import io.deepsense.deeplang.doperables.dataframe.types.vector.{VectorMetadata, VectorMetadataConverter}
-import io.deepsense.deeplang.doperations.CsvParameters.ColumnSeparator
+import io.deepsense.deeplang.doperables.dataframe.types.categorical.CategoricalColumnMetadata
+import io.deepsense.deeplang.doperables.dataframe.types.vector.VectorColumnMetadata
 import io.deepsense.deeplang.parameters._
 
 class WriteReadDataFrameIntegSpec
@@ -46,7 +45,7 @@ class WriteReadDataFrameIntegSpec
       SparkConversions.columnTypeToSparkColumnType(ColumnType.boolean)),
     StructField("categorical",
       SparkConversions.columnTypeToSparkColumnType(ColumnType.categorical),
-      metadata = MappingMetadataConverter.mappingToMetadata(CategoriesMapping(Seq("A", "B", "C")))),
+      metadata = CategoricalColumnMetadata("A", "B", "C").toSparkMetadata()),
     StructField("numeric",
       SparkConversions.columnTypeToSparkColumnType(ColumnType.numeric)),
     StructField("string",
@@ -55,7 +54,7 @@ class WriteReadDataFrameIntegSpec
       SparkConversions.columnTypeToSparkColumnType(ColumnType.timestamp)),
     StructField("vector",
       SparkConversions.columnTypeToSparkColumnType(ColumnType.vector),
-      metadata = VectorMetadataConverter.toSchemaMetadata(VectorMetadata(3)))
+      metadata = VectorColumnMetadata(3).toSparkMetadata())
   ))
 
   val rows = Seq(

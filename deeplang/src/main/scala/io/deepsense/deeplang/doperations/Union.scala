@@ -22,12 +22,13 @@ import org.apache.spark.sql.Row
 import org.apache.spark.sql.types.{Metadata, StructField, StructType}
 
 import io.deepsense.commons.types.ColumnType
+import io.deepsense.commons.types.ColumnType.ColumnType
 import io.deepsense.deeplang.DOperation.Id
-import io.deepsense.deeplang.doperables.dataframe.types.categorical.{CategoricalMetadata, MappingMetadataConverter}
-import io.deepsense.deeplang.doperables.dataframe.types.vector.VectorMetadata
-import io.deepsense.deeplang.doperables.dataframe.{VectorColumnMetadata, DataFrame, DataFrameMetadata}
+import io.deepsense.deeplang.doperables.dataframe.types.ColumnMetadata
+import io.deepsense.deeplang.doperables.dataframe.types.categorical.{CategoricalColumnMetadata, CategoricalMetadata}
+import io.deepsense.deeplang.doperables.dataframe.types.vector.VectorColumnMetadata
+import io.deepsense.deeplang.doperables.dataframe.{ColumnKnowledge, DataFrame, DataFrameMetadata}
 import io.deepsense.deeplang.doperations.exceptions.SchemaMismatchException
-import ColumnType.ColumnType
 import io.deepsense.deeplang.parameters.ParametersSchema
 import io.deepsense.deeplang.{DOperation2To1, ExecutionContext}
 
@@ -64,11 +65,14 @@ case class Union() extends DOperation2To1[DataFrame, DataFrame, DataFrame] {
     def withNoMeta(f: StructField): StructField =
       f.copy(metadata = Metadata.empty)
 
-    def columnMetadata(schema: StructType): Seq[(Option[ColumnType], Option[VectorMetadata])] =
+    def columnMetadata(
+        schema: StructType): Seq[(Option[ColumnType], Option[ColumnMetadata])] = {
       DataFrameMetadata.fromSchema(schema).orderedColumns.map {
-        case v: VectorColumnMetadata => (v.columnType, v.vectorMetadata)
-        case m => (m.columnType, None)
+        case columnKnowledge if columnKnowledge.columnType.get == ColumnType.vector =>
+          (columnKnowledge.columnType, columnKnowledge.metadata)
+        case columnKnowledge => (columnKnowledge.columnType, None)
       }
+    }
 
     val similar =
       (firstSchema.fields.map(withNoMeta) sameElements secondSchema.fields.map(withNoMeta)) &&
@@ -76,7 +80,7 @@ case class Union() extends DOperation2To1[DataFrame, DataFrame, DataFrame] {
 
     if (!similar) {
       throw new SchemaMismatchException(
-        "SchemaMismatch. Expected schema " +
+        "Expected schema " +
         s"${first.sparkDataFrame.schema.treeString}" +
           s" differs from ${second.sparkDataFrame.schema.treeString}")
     }
@@ -111,7 +115,7 @@ case class Union() extends DOperation2To1[DataFrame, DataFrame, DataFrame] {
 
     val metadata = CategoricalMetadata(dataFrame)
 
-    val mergedMappingsByColumnIdx = externalMetadata.mappingById.map {
+    val mergedMappingsByColumnIdx = externalMetadata.mappingByIndex.map {
       case (i: Int, extMapping) =>
         i -> extMapping.mergeWith(metadata.mapping(i))
     }
@@ -133,8 +137,8 @@ case class Union() extends DOperation2To1[DataFrame, DataFrame, DataFrame] {
 
     val newStructFields = dataFrame.sparkDataFrame.schema.zipWithIndex.map {
       case (field, index: Int) if metadata.isCategorical(index) =>
-        val newMetadata = MappingMetadataConverter.mappingToMetadata(
-          mergedMappingsByColumnIdx(index).finalMapping)
+        val newMetadata = CategoricalColumnMetadata(
+          mergedMappingsByColumnIdx(index).finalMapping).toSparkMetadata()
         field.copy(metadata = newMetadata)
 
       case (field, _) => field

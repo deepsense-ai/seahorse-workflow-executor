@@ -21,8 +21,8 @@ import scala.util.{Failure, Success, Try}
 import org.apache.spark.sql.types.StructField
 
 import io.deepsense.commons.types.ColumnType
-import io.deepsense.deeplang.doperables.dataframe.types.SparkConversions
-import io.deepsense.deeplang.doperables.dataframe.types.categorical.MappingMetadataConverter
+import io.deepsense.deeplang.doperables.dataframe.types.{ColumnMetadata, SparkConversions}
+import io.deepsense.deeplang.doperables.dataframe.types.categorical.CategoricalColumnMetadataBuilder
 import io.deepsense.deeplang.doperations.exceptions.WrongColumnTypeException
 
 object ColumnTypesPredicates {
@@ -59,7 +59,8 @@ object ColumnTypesPredicates {
       case ColumnType.boolean => Success()
       case ColumnType.numeric => Success()
       case ColumnType.categorical =>
-        MappingMetadataConverter.mappingFromMetadata(field.metadata).get.values.size match {
+        val metadata = CategoricalColumnMetadataBuilder.fromSparkMetadata(field.metadata)
+        metadata.categories.values.size match {
           case 1 => Success()
           case 2 => Success()
           case categoriesCount =>

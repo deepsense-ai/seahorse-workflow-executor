@@ -19,7 +19,7 @@ package io.deepsense.models.json.workflow
 import spray.json._
 
 import io.deepsense.commons.types.ColumnType
-import io.deepsense.deeplang.doperables.dataframe.{CommonColumnMetadata, DataFrameMetadata}
+import io.deepsense.deeplang.doperables.dataframe.{ColumnKnowledge, DataFrameMetadata}
 import io.deepsense.deeplang.exceptions.DeepLangException
 import io.deepsense.deeplang.inference.{InferenceWarning, InferenceWarnings}
 import io.deepsense.models.json.{StandardSpec, UnitTestSupport}
@@ -44,12 +44,14 @@ class MetadataInferenceResultJsonProtocolSpec
                 "col1" -> JsObject(
                   "name" -> JsString("col1"),
                   "index" -> JsNumber(0),
-                  "columnType" -> JsString("numeric")
+                  "columnType" -> JsString("numeric"),
+                  "metadata" -> JsObject()
                 ),
                 "col2" -> JsObject(
                   "name" -> JsString("col2"),
                   "index" -> JsNumber(1),
-                  "columnType" -> JsString("string")
+                  "columnType" -> JsString("string"),
+                  "metadata" -> JsObject()
                 )
               )
             )
@@ -67,8 +69,8 @@ class MetadataInferenceResultJsonProtocolSpec
       isExact = true,
       isColumnCountExact = true,
       Map(
-        "col1" -> CommonColumnMetadata("col1", Some(0), Some(ColumnType.numeric)),
-        "col2" -> CommonColumnMetadata("col2", Some(1), Some(ColumnType.string))
+        "col1" -> ColumnKnowledge("col1", Some(0), Some(ColumnType.numeric)),
+        "col2" -> ColumnKnowledge("col2", Some(1), Some(ColumnType.string))
       )
     )
 

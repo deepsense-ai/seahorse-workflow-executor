@@ -21,7 +21,7 @@ import org.mockito.Mockito._
 import io.deepsense.commons.types.ColumnType
 import io.deepsense.deeplang.doperables.transformations.MathematicalTransformation
 import io.deepsense.deeplang.{DKnowledge, UnitSpec}
-import io.deepsense.deeplang.doperables.dataframe.{DataFrameBuilder, CommonColumnMetadata, DataFrameMetadata}
+import io.deepsense.deeplang.doperables.dataframe.{DataFrameBuilder, ColumnKnowledge, DataFrameMetadata}
 import io.deepsense.deeplang.inference.{InferenceWarnings, InferContext}
 
 class MathematicalTransformationSpec extends UnitSpec {
@@ -35,14 +35,14 @@ class MathematicalTransformationSpec extends UnitSpec {
         isExact = true,
         isColumnCountExact = true,
         columns = Map(
-          "num_col" -> CommonColumnMetadata("num_col", Some(0), Some(ColumnType.numeric)))
+          "num_col" -> ColumnKnowledge("num_col", Some(0), Some(ColumnType.numeric)))
       )
 
       val expectedOutputMetadata = DataFrameMetadata(
         isExact = false,
         isColumnCountExact = false,
         columns = Map(
-          "num_col" -> CommonColumnMetadata("num_col", Some(0), Some(ColumnType.numeric))
+          "num_col" -> ColumnKnowledge("num_col", Some(0), Some(ColumnType.numeric))
         )
       )
 

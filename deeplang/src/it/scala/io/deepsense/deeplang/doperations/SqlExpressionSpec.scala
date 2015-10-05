@@ -25,13 +25,13 @@ import io.deepsense.deeplang.DeeplangIntegTestSupport
 import io.deepsense.deeplang.doperables.dataframe.DataFrame
 import io.deepsense.deeplang.doperables.dataframe.types.SparkConversions
 import io.deepsense.deeplang.doperables.dataframe.types.categorical.CategoricalMetadata
-import io.deepsense.deeplang.doperables.dataframe.types.vector.{VectorMetadata, VectorMetadataConverter}
+import io.deepsense.deeplang.doperables.dataframe.types.vector.VectorColumnMetadata
 
 class SqlExpressionSpec extends DeeplangIntegTestSupport {
 
   val dataFrameId = "ThisIsAnId"
   val validExpression = s"select * from $dataFrameId"
-  val invalidExpresion = "foobar"
+  val invalidExpression = "foobar"
 
   val firstColumn = "firstColumn"
   val secondColumn = "secondColumn"
@@ -73,20 +73,20 @@ class SqlExpressionSpec extends DeeplangIntegTestSupport {
 
       outputMetadata.isCategorical(0) shouldBe false
       outputMetadata.isCategorical(1) shouldBe true
-      outputMetadata.mappingById(1) shouldBe inputMetadata.mappingById(columns(1))
+      outputMetadata.mappingByIndex(1) shouldBe inputMetadata.mappingByIndex(columns(1))
     }
     "unregister the input DataFrame after execution" in {
       val dataFrame = sampleDataFrame
 
       executeSqlExpression(validExpression, dataFrameId, dataFrame)
-      assertTableUnregistered
+      assertTableUnregistered()
     }
     "unregister the input DataFrame if execution failed" in {
       val dataFrame = sampleDataFrame
       a [RuntimeException] should be thrownBy {
-        executeSqlExpression(invalidExpresion, dataFrameId, dataFrame)
+        executeSqlExpression(invalidExpression, dataFrameId, dataFrame)
       }
-      assertTableUnregistered
+      assertTableUnregistered()
     }
     "copy categorical metadata" in {
       val dataFrame = sampleDataFrame
@@ -95,7 +95,7 @@ class SqlExpressionSpec extends DeeplangIntegTestSupport {
 
       val inputMetadata = CategoricalMetadata(dataFrame)
       val outputMetadata = CategoricalMetadata(result)
-      outputMetadata.mappingById shouldBe inputMetadata.mappingById
+      outputMetadata.mappingByIndex shouldBe inputMetadata.mappingByIndex
       outputMetadata.mappingByName shouldBe inputMetadata.mappingByName
     }
     "handle vector type in DataFrame" in {
@@ -106,7 +106,7 @@ class SqlExpressionSpec extends DeeplangIntegTestSupport {
         StructField(categoricalColumn, StringType),
         StructField(vectorColumn,
           SparkConversions.columnTypeToSparkColumnType(ColumnType.vector),
-          metadata = VectorMetadataConverter.toSchemaMetadata(VectorMetadata(3)))
+          metadata = VectorColumnMetadata(3).toSparkMetadata())
       ))
 
       val data = Seq(
@@ -125,7 +125,8 @@ class SqlExpressionSpec extends DeeplangIntegTestSupport {
         StructField(secondColumn, DoubleType),
         StructField(vectorColumn,
           SparkConversions.columnTypeToSparkColumnType(ColumnType.vector),
-          metadata = VectorMetadataConverter.toSchemaMetadata(VectorMetadata(3)))
+          metadata = VectorColumnMetadata(3).toSparkMetadata()
+        )
       ))
       result.sparkDataFrame.rdd.collect shouldBe Array(
         Row(5.0,  Vectors.dense(1.0, 2.0, 3.0)),
@@ -136,7 +137,7 @@ class SqlExpressionSpec extends DeeplangIntegTestSupport {
     }
   }
 
-  def assertTableUnregistered: Unit = {
+  def assertTableUnregistered(): Unit = {
     val exception = intercept[RuntimeException] {
       executionContext.sqlContext.table(dataFrameId)
     }

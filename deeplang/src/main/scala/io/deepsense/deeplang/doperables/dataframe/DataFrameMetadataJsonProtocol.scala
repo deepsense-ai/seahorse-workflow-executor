@@ -21,9 +21,11 @@ import spray.json._
 
 import io.deepsense.commons.json.EnumerationSerializer
 import io.deepsense.commons.types.ColumnType
-import io.deepsense.deeplang.doperables.dataframe.types.categorical.CategoriesMapping
-import io.deepsense.deeplang.doperables.dataframe.types.vector.VectorMetadata
+import io.deepsense.deeplang.doperables.dataframe.types.categorical.{CategoricalColumnMetadata, CategoriesMapping}
+import io.deepsense.deeplang.doperables.dataframe.types.vector.VectorColumnMetadata
+import io.deepsense.deeplang.doperables.dataframe.types.{ColumnMetadata, EmptyColumnMetadata}
 
+// TODO DS-1759 improve error handling
 trait CategoriesMappingJsonProtocol extends DefaultJsonProtocol with SprayJsonSupport {
   implicit object CategoriesMappingFormat extends JsonFormat[CategoriesMapping] {
     override def write(cm: CategoriesMapping): JsValue = cm.valueToId.keys.toVector.toJson
@@ -33,58 +35,67 @@ trait CategoriesMappingJsonProtocol extends DefaultJsonProtocol with SprayJsonSu
   }
 }
 
-trait ColumnMetadataJsonProtocol
+trait ColumnKnowledgeJsonProtocol
   extends DefaultJsonProtocol
   with SprayJsonSupport
   with CategoriesMappingJsonProtocol
   with NullOptions {
 
-  private val ColumnTypeField = "columnType"
-
   implicit val columnTypeFormat = EnumerationSerializer.jsonEnumFormat(ColumnType)
 
-  implicit val commonColumnMetadataFormat = jsonFormat3(CommonColumnMetadata.apply)
+  private object ColumnMetadataJsonProtocol {
+    implicit object CategoricalColumnMetadataFormat extends JsonFormat[CategoricalColumnMetadata] {
+      private val CategoriesKey = "categories"
 
+      override def write(obj: CategoricalColumnMetadata): JsValue = JsObject(
+        CategoriesKey -> obj.categories.toJson)
 
-  implicit object CategoricalColumnMetadataFormat extends JsonFormat[CategoricalColumnMetadata] {
-    private val defaultFormat = jsonFormat3(CategoricalColumnMetadata.apply)
-    override def write(cm: CategoricalColumnMetadata): JsValue = JsObject(
-      cm.toJson(defaultFormat).asJsObject.fields + (ColumnTypeField -> cm.columnType.toJson))
-
-    override def read(json: JsValue): CategoricalColumnMetadata =
-      json.convertTo[CategoricalColumnMetadata](defaultFormat)
-  }
-
-  implicit val vectorMetadataFormat = jsonFormat1(VectorMetadata)
-
-  implicit object VectorColumnMetadataFormat extends JsonFormat[VectorColumnMetadata] {
-    private val defaultFormat = jsonFormat3(VectorColumnMetadata.apply)
-    override def write(vm: VectorColumnMetadata): JsValue = JsObject(
-      vm.toJson(defaultFormat).asJsObject.fields + (ColumnTypeField -> vm.columnType.toJson))
-
-    override def read(json: JsValue): VectorColumnMetadata =
-      json.convertTo[VectorColumnMetadata](defaultFormat)
-  }
-
-  implicit object ColumnMetadataFormat extends JsonFormat[ColumnMetadata] {
-    override def write(cm: ColumnMetadata): JsValue = cm match {
-      case commonCm: CommonColumnMetadata => commonCm.toJson
-      case categoricalCm: CategoricalColumnMetadata => categoricalCm.toJson
-      case vectorCm: VectorColumnMetadata => vectorCm.toJson
+      override def read(json: JsValue): CategoricalColumnMetadata = {
+        json.asJsObject.fields.get(CategoriesKey) match {
+          case Some(categories) =>
+            CategoricalColumnMetadata(categories.convertTo[CategoriesMapping])
+          case None => throw deserializationError(s"Expected field '$CategoriesKey' not found")
+        }
+      }
     }
 
-    override def read(json: JsValue): ColumnMetadata = {
+    implicit val vectorColumnMetadataFormat = jsonFormat1(VectorColumnMetadata)
+
+    implicit object ColumnMetadataFormat extends JsonFormat[ColumnMetadata] {
+      override def write(obj: ColumnMetadata): JsValue = obj match {
+        case EmptyColumnMetadata => JsObject()
+        case categorical: CategoricalColumnMetadata => categorical.toJson
+        case vector: VectorColumnMetadata => vector.toJson
+      }
+
+      override def read(json: JsValue): ColumnMetadata = EmptyColumnMetadata
+    }
+  }
+
+  implicit object ColumnKnowledgeFormat extends JsonFormat[ColumnKnowledge] {
+    import ColumnMetadataJsonProtocol._
+
+    val defaultFormat = jsonFormat4(ColumnKnowledge.apply)
+
+    override def write(ck: ColumnKnowledge): JsValue = ck.toJson(defaultFormat)
+
+    override def read(json: JsValue): ColumnKnowledge = {
+      val withoutMetadata = json.convertTo[ColumnKnowledge](defaultFormat)
+
       val categoricalType = ColumnType.categorical.toString
       val vectorType = ColumnType.vector.toString
 
-      json.asJsObject.fields(ColumnTypeField) match {
-        case JsNull => json.convertTo[CommonColumnMetadata]
-        case notNullJson => notNullJson.convertTo[String] match {
-          case `categoricalType` => json.convertTo[CategoricalColumnMetadata]
-          case `vectorType` => json.convertTo[VectorColumnMetadata]
-          case _ => json.convertTo[CommonColumnMetadata]
-        }
+      val metadata = json.asJsObject.getFields("columnType", "metadata") match {
+        case Seq(JsNull, _) => None
+        case Seq(_, JsNull) => None
+        case Seq(typeJs, metadataJs) =>
+          Some(typeJs.convertTo[String] match {
+            case `categoricalType` => metadataJs.convertTo[CategoricalColumnMetadata]
+            case `vectorType` => metadataJs.convertTo[VectorColumnMetadata]
+            case _ => EmptyColumnMetadata
+          })
       }
+      withoutMetadata.copy(metadata = metadata)
     }
   }
 }
@@ -92,7 +103,7 @@ trait ColumnMetadataJsonProtocol
 trait DataFrameMetadataJsonProtocol
     extends DefaultJsonProtocol
     with SprayJsonSupport
-    with ColumnMetadataJsonProtocol {
+    with ColumnKnowledgeJsonProtocol {
   implicit val dataFrameMetadataFormat = jsonFormat3(DataFrameMetadata.apply)
 }
 

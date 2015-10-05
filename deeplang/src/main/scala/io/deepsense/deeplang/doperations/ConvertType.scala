@@ -153,37 +153,37 @@ case class ConvertType() extends DOperation1To1[DataFrame, DataFrame] {
   private def convertDataFrameMetadata(
       inputMetadata: DataFrameMetadata,
       columnNamesToConvert: Seq[String],
-      targetType: ColumnType): List[ColumnMetadata] = {
-    val outputMetadata = new ListBuffer[ColumnMetadata]()
-    for (columnMetadata <- inputMetadata.columns.values) {
-      val conversionRequired = columnNamesToConvert.contains(columnMetadata.name)
-      if (!conversionRequired) {
-        outputMetadata += columnMetadata
+      targetType: ColumnType): List[ColumnKnowledge] = {
+    val outputMetadata = new ListBuffer[ColumnKnowledge]()
+    for (columnKnowledge <- inputMetadata.columns.values) {
+      val conversionRequired = columnNamesToConvert.contains(columnKnowledge.name)
+      if (conversionRequired) {
+        outputMetadata += convertSingleColumnKnowledge(columnKnowledge, targetType)
       } else {
-        outputMetadata += convertSingleColumnMetadata(columnMetadata, targetType)
+        outputMetadata += columnKnowledge
       }
     }
     outputMetadata.toList
   }
 
-  private def convertSingleColumnMetadata(
-      metadata: ColumnMetadata,
-      targetType: ColumnType): ColumnMetadata = {
-    if (metadata.columnType.exists(_ == targetType)) {
-      metadata
+  private def convertSingleColumnKnowledge(
+      columnKnowledge: ColumnKnowledge,
+      targetType: ColumnType): ColumnKnowledge = {
+    if (columnKnowledge.columnType.exists(_ == targetType)) {
+      columnKnowledge
     } else {
       targetType match {
         case ColumnType.categorical =>
-          CategoricalColumnMetadata(metadata.name, metadata.index, None)
+          ColumnKnowledge.categorical(columnKnowledge.name, columnKnowledge.index, None)
         case _ =>
-          CommonColumnMetadata(metadata.name, metadata.index, Some(targetType))
+          ColumnKnowledge(columnKnowledge.name, columnKnowledge.index, Some(targetType))
       }
     }
   }
 
   val safeConvertsTo = Seq(ColumnType.string, ColumnType.categorical)
   val safeConvertsMap = Map(
-    ColumnType.numeric -> (safeConvertsTo),
+    ColumnType.numeric -> safeConvertsTo,
     ColumnType.boolean -> (safeConvertsTo ++ Seq(ColumnType.numeric)),
     ColumnType.categorical -> Seq(ColumnType.string),
     ColumnType.string -> Seq(ColumnType.categorical),

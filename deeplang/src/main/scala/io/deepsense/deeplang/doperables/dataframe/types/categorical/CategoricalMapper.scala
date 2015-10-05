@@ -23,10 +23,9 @@ import org.apache.spark.sql.types.{IntegerType, StringType, StructType}
 import org.joda.time.DateTime
 
 import io.deepsense.commons.types.ColumnType
-import io.deepsense.deeplang.doperables.dataframe.types.{SparkConversions, Conversions}
 import io.deepsense.deeplang.doperables.dataframe.types.categorical.CategoricalMapper.CategoricalMappingsMap
-import io.deepsense.deeplang.doperables.dataframe.types.categorical.MappingMetadataConverter._
-import io.deepsense.deeplang.doperables.dataframe.{DataFrame, DataFrameBuilder, DataFrameColumnsGetter}
+import io.deepsense.deeplang.doperables.dataframe.types.{ColumnMetadata, Conversions, SparkConversions}
+import io.deepsense.deeplang.doperables.dataframe.{DataFrame, DataFrameBuilder}
 
 case class CategoricalMapper(dataFrame: DataFrame, dataFrameBuilder: DataFrameBuilder) {
   private val sparkDataFrame = dataFrame.sparkDataFrame
@@ -137,7 +136,7 @@ object CategoricalMapper {
       mappings
         .get(field.name)
         .map { m =>
-        val updatedMetadata = MappingMetadataConverter.mappingToMetadata(m, field.metadata)
+        val updatedMetadata = CategoricalColumnMetadata(m).toSparkMetadata(field.metadata)
         field.copy(metadata = updatedMetadata, dataType = IntegerType)
       }.getOrElse(field))
     StructType(mappedType.toSeq)
@@ -145,8 +144,6 @@ object CategoricalMapper {
 
   /**
    * Performs conversion of categorical columns to string columns in Spark DataFrame schema.
-   * @param schema
-   * @param categoricalMetadata
    * @return Spark DataFrame schema with categorical columns converted to string columns
    */
   def uncategorizedSchema(
@@ -162,8 +159,9 @@ object CategoricalMapper {
   }
 
   def mappingsMapFromSchema(schema: StructType): CategoricalMappingsMap = {
-    schema.flatMap(field =>
-      mappingFromMetadata(field.metadata).map(field.name -> _)
-    ).toMap
+    schema.flatMap { case field =>
+      val metadata = CategoricalColumnMetadataBuilder.tryFromSparkMetadata(field.metadata)
+      metadata.map(field.name -> _.categories)
+    }.toMap
   }
 }

@@ -53,7 +53,7 @@ class MissingValuesHandlerSpec extends UnitSpec {
 
   private def createMultiColumnSchema: StructType = {
     StructType(List(
-      StructField("column1", IntegerType),
+      StructField("column1", TimestampType),
       StructField("column2", DoubleType),
       StructField("column3", StringType)
     ))

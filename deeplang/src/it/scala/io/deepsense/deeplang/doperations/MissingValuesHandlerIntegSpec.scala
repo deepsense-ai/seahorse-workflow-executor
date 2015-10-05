@@ -32,6 +32,7 @@ import io.deepsense.commons.types.ColumnType
 import io.deepsense.deeplang.DeeplangIntegTestSupport
 import io.deepsense.deeplang.doperables.dataframe.types.SparkConversions
 import io.deepsense.deeplang.doperables.dataframe.types.categorical.CategoricalMapper
+import io.deepsense.deeplang.doperables.dataframe.types.vector.VectorColumnMetadata
 import io.deepsense.deeplang.doperations.exceptions.{WrongColumnTypeException, WrongReplacementValueException, MultipleTypesReplacementException}
 import io.deepsense.deeplang.parameters.ChoiceParameter.BinaryChoice
 import io.deepsense.deeplang.parameters.{IndexColumnSelection, IndexRangeColumnSelection, MultipleColumnSelection}
@@ -318,7 +319,9 @@ class MissingValuesHandlerIntegSpec extends DeeplangIntegTestSupport
       val df = createDataFrame(values, StructType(List(
         StructField("value1", DoubleType, nullable = true),
         StructField("value2", StringType, nullable = true),
-        StructField("value3", vectorType, nullable = true)
+        StructField(
+          "value3", vectorType, nullable = true, VectorColumnMetadata(0).toSparkMetadata()
+        )
       )))
 
       val columnSelection = MultipleColumnSelection(

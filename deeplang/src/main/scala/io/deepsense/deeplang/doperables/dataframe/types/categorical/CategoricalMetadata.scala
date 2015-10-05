@@ -16,30 +16,34 @@
 
 package io.deepsense.deeplang.doperables.dataframe.types.categorical
 
+import org.apache.spark.sql.types.StructType
+
 import io.deepsense.deeplang.doperables.dataframe.DataFrame
 
-case class CategoricalMetadata(sparkDataFrame: org.apache.spark.sql.DataFrame) {
-  import io.deepsense.deeplang.doperables.dataframe.types.categorical.MappingMetadataConverter._
-  private val schema = sparkDataFrame.schema
+case class CategoricalMetadata(schema: StructType) {
   private val mappingTriplets = for {
       (field, index) <- schema.zipWithIndex
-      mapping <- mappingFromMetadata(field.metadata)
-    } yield (field.name, index, mapping)
+      metadata <- CategoricalColumnMetadataBuilder.tryFromSparkMetadata(field.metadata)
+    } yield (field.name, index, metadata.categories)
 
-  val mappingById =
+  val mappingByIndex =
     mappingTriplets.map { case (_, index, mapping) => index -> mapping }.toMap
   val mappingByName =
     mappingTriplets.map { case (name, _, mapping) => name -> mapping }.toMap
 
-  def mapping(id: Int): CategoriesMapping = mappingById(id)
+  def mapping(index: Int): CategoriesMapping = mappingByIndex(index)
   def mapping(name: String): CategoriesMapping = mappingByName(name)
-  def mappingOptional(id: Int): Option[CategoriesMapping] = mappingById.get(id)
+  def mappingOptional(index: Int): Option[CategoriesMapping] = mappingByIndex.get(index)
   def mappingOptional(name: String): Option[CategoriesMapping] = mappingByName.get(name)
-  def isCategorical(id: Int): Boolean = mappingById.contains(id)
+  def isCategorical(index: Int): Boolean = mappingByIndex.contains(index)
   def isCategorical(name: String): Boolean = mappingByName.contains(name)
 }
 
 object CategoricalMetadata {
+
+  def apply(sparkDataFrame: org.apache.spark.sql.DataFrame): CategoricalMetadata =
+    CategoricalMetadata(sparkDataFrame.schema)
+
   def apply(dataFrame: DataFrame): CategoricalMetadata =
     CategoricalMetadata(dataFrame.sparkDataFrame)
 }

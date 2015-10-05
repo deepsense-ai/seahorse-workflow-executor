@@ -24,9 +24,10 @@ import scala.reflect.runtime.{universe => ru}
 import org.apache.spark.sql.types._
 
 import io.deepsense.commons.types.ColumnType
-import io.deepsense.commons.types.ColumnType.ColumnType
 import io.deepsense.deeplang.DOperation._
-import io.deepsense.deeplang.doperables.dataframe.{CategoricalColumnMetadata, ColumnMetadata, DataFrame}
+import io.deepsense.deeplang.doperables.dataframe.types.categorical.CategoricalColumnMetadata
+import io.deepsense.deeplang.doperables.dataframe.types.vector.VectorColumnMetadata
+import io.deepsense.deeplang.doperables.dataframe.{ColumnKnowledge, DataFrame}
 import io.deepsense.deeplang.doperations.MissingValuesHandler.{EmptyColumnsMode, Strategy}
 import io.deepsense.deeplang.doperations.exceptions._
 import io.deepsense.deeplang.inference.{InferContext, InferenceWarnings}
@@ -136,7 +137,7 @@ case class MissingValuesHandler()
     MissingValuesHandlerUtils.replaceNulls(context, dataFrame, columns,
       columnName =>
         ReplaceWithCustomValueStrategy.convertReplacementValue(
-        customValue, columnMetadata(columnName), columnTypes(columnName)))
+          customValue, columnMetadata(columnName)))
   }
 
   private def replaceWithMode(
@@ -306,20 +307,23 @@ private object MissingValuesHandlerUtils {
 private object ReplaceWithCustomValueStrategy {
 
   def convertReplacementValue(
-      rawValue: String, colMetadata: ColumnMetadata, colType: ColumnType): Any = {
+      rawValue: String, colKnowledge: ColumnKnowledge): Any = {
 
     try {
-      colType match {
-        case ColumnType.numeric => rawValue.toDouble
-        case ColumnType.boolean => rawValue.toBoolean
-        case ColumnType.string => rawValue
-        case ColumnType.timestamp => Timestamp.valueOf(rawValue)
-        case ColumnType.categorical =>
-          colMetadata.asInstanceOf[CategoricalColumnMetadata].categories.get.valueToId(rawValue)
+      colKnowledge.metadata.get match {
+        case CategoricalColumnMetadata(categories) => categories.valueToId(rawValue)
+        case vcm: VectorColumnMetadata => throw new IllegalStateException()
+        case _ => colKnowledge.columnType.get match {
+          case ColumnType.numeric => rawValue.toDouble
+          case ColumnType.boolean => rawValue.toBoolean
+          case ColumnType.string => rawValue
+          case ColumnType.timestamp => Timestamp.valueOf(rawValue)
+        }
       }
     } catch {
       case e: Exception =>
-        throw new WrongReplacementValueException(rawValue, colMetadata.name, colType)
+        throw new WrongReplacementValueException(
+          rawValue, colKnowledge.name, colKnowledge.columnType.get, Some(e))
     }
   }
 

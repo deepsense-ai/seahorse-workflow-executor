@@ -16,7 +16,8 @@
 
 package io.deepsense.deeplang.doperables
 
-import io.deepsense.deeplang.doperables.dataframe.{CategoricalColumnMetadata, DataFrame}
+import io.deepsense.deeplang.doperables.dataframe.{ColumnKnowledge, DataFrame}
+import io.deepsense.deeplang.doperables.dataframe.types.categorical.{CategoricalColumnMetadata, CategoricalMetadata}
 
 trait CategoricalFeaturesExtractor {
 
@@ -29,12 +30,12 @@ trait CategoricalFeaturesExtractor {
    *         for each non-empty categorical feature
    */
   def extractCategoricalFeatures(
-      dataframe: DataFrame, featureColumns: Seq[String]): Map[Int, Int] = {
+    dataframe: DataFrame, featureColumns: Seq[String]): Map[Int, Int] = {
 
     val columnMapping = featureColumns.zipWithIndex.toMap
     dataframe.metadata.map { metadata =>
       metadata.columns.values.flatMap {
-        case CategoricalColumnMetadata(name, _, Some(categories)) =>
+        case ColumnKnowledge(name, _, _, Some(CategoricalColumnMetadata(categories))) =>
           val categoriesCount = categories.values.length
           // Exclude categorical features with no categories
           if (featureColumns.contains(name) && categoriesCount > 0) {

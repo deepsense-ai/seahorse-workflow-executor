@@ -20,9 +20,9 @@ import org.apache.spark.sql.types._
 
 import io.deepsense.commons.types.ColumnType
 import io.deepsense.deeplang.catalogs.doperable.DOperableCatalog
-import io.deepsense.deeplang.doperables.dataframe.types.categorical.{MappingMetadataConverter, CategoriesMapping}
 import io.deepsense.deeplang.doperables.dataframe._
-import io.deepsense.deeplang.inference.{MultipleColumnsMayNotExistWarning, ConversionMayNotBePossibleWarning, InferContext}
+import io.deepsense.deeplang.doperables.dataframe.types.categorical.{CategoricalColumnMetadata, CategoriesMapping}
+import io.deepsense.deeplang.inference.{ConversionMayNotBePossibleWarning, InferContext}
 import io.deepsense.deeplang.{DKnowledge, UnitSpec}
 
 class ConvertTypeSpec extends UnitSpec {
@@ -49,7 +49,7 @@ class ConvertTypeSpec extends UnitSpec {
       inferredMetadata.orderedColumns shouldBe Seq(
         numericColumn,
         categoricalColumn1,
-        CategoricalColumnMetadata(stringColumn.name, stringColumn.index, None),
+        ColumnKnowledge.categorical(stringColumn.name, stringColumn.index, None),
         categoricalColumn2
       )
     }
@@ -80,7 +80,7 @@ class ConvertTypeSpec extends UnitSpec {
       inferredMetadata.orderedColumns shouldBe Seq(
         numericColumn,
         categoricalColumn1,
-        CommonColumnMetadata(stringColumn.name, stringColumn.index, numericColumn.columnType),
+        ColumnKnowledge(stringColumn.name, stringColumn.index, numericColumn.columnType),
         categoricalColumn2
       )
     }
@@ -110,9 +110,9 @@ class ConvertTypeSpec extends UnitSpec {
 
       inferredMetadata.orderedColumns shouldBe Seq(
         categoricalColumn1,
-        CategoricalColumnMetadata(stringColumn.name, stringColumn.index, None),
+        ColumnKnowledge.categorical(stringColumn.name, stringColumn.index, None),
         categoricalColumnWithUnknownCategories,
-        CategoricalColumnMetadata(
+        ColumnKnowledge.categorical(
           columnWithUnknownType.name,
           columnWithUnknownType.index,
           None),
@@ -127,28 +127,28 @@ class ConvertTypeSpec extends UnitSpec {
     CategoriesMapping(Seq("cat", "dog"))
   )
 
-  val numericColumn = CommonColumnMetadata(
+  val numericColumn = ColumnKnowledge(
     name = "num_column", index = Some(0), columnType = Some(ColumnType.numeric))
 
-  val categoricalColumn1 = CategoricalColumnMetadata(
-    name = "categorical_1", index = Some(1), categories = Some(mappings(0)))
+  val categoricalColumn1 = ColumnKnowledge.categorical(
+    name = "categorical_1", index = Some(1), mappings(0))
 
-  val stringColumn = CommonColumnMetadata(
+  val stringColumn = ColumnKnowledge(
     name = "string_column", index = Some(2), columnType = Some(ColumnType.string))
 
-  val categoricalColumn2 = CategoricalColumnMetadata(
-    name = "categorical_2", index = Some(3), categories = Some(mappings(1)))
+  val categoricalColumn2 = ColumnKnowledge.categorical(
+    name = "categorical_2", index = Some(3), mappings(1))
 
-  val numericColumnWithUnknownIndex = CommonColumnMetadata(
+  val numericColumnWithUnknownIndex = ColumnKnowledge(
     name = "num_unknown_index", index = None, columnType = Some(ColumnType.numeric))
 
-  val categoricalColumnWithUnknownIndex = CategoricalColumnMetadata(
-    name = "categorical_unknown_index", index = None, categories = Some(mappings(1)))
+  val categoricalColumnWithUnknownIndex = ColumnKnowledge.categorical(
+    name = "categorical_unknown_index", index = None, mappings(1))
 
-  val categoricalColumnWithUnknownCategories = CategoricalColumnMetadata(
-    name = "categorical_unknown_categories", index = Some(4), categories = None)
+  val categoricalColumnWithUnknownCategories = ColumnKnowledge.categorical(
+    name = "categorical_unknown_categories", index = Some(4), None)
 
-  val columnWithUnknownType = CommonColumnMetadata(
+  val columnWithUnknownType = ColumnKnowledge(
     name = "unknown_type", index = Some(5), columnType = None)
 
 
@@ -159,14 +159,14 @@ class ConvertTypeSpec extends UnitSpec {
     StructField(
       categoricalColumn1.name,
       IntegerType,
-      metadata = MappingMetadataConverter.mappingToMetadata(mappings(0))),
+      metadata = CategoricalColumnMetadata(mappings(0)).toSparkMetadata()),
     StructField(
       stringColumn.name,
       StringType),
     StructField(
       categoricalColumn2.name,
       IntegerType,
-      metadata = MappingMetadataConverter.mappingToMetadata(mappings(1)))
+      metadata = CategoricalColumnMetadata(mappings(1)).toSparkMetadata())
   ))
 
   val metadata = DataFrameMetadata(

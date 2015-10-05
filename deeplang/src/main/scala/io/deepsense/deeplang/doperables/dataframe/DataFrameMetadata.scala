@@ -20,15 +20,15 @@ import org.apache.spark.sql.types.{StructField, StructType}
 import spray.json._
 
 import io.deepsense.commons.types.ColumnType
+import io.deepsense.commons.types.ColumnType.ColumnType
 import io.deepsense.deeplang._
 import io.deepsense.deeplang.doperables.dataframe.DataFrameMetadataJsonProtocol._
-import io.deepsense.deeplang.doperables.dataframe.types.SparkConversions
-import io.deepsense.deeplang.doperables.dataframe.types.categorical.{CategoriesMapping, MappingMetadataConverter}
-import io.deepsense.deeplang.doperables.dataframe.types.vector.{VectorMetadataConverter, VectorMetadata}
+import io.deepsense.deeplang.doperables.dataframe.types.categorical.{CategoriesMapping, CategoricalColumnMetadata}
+import io.deepsense.deeplang.doperables.dataframe.types.vector.VectorColumnMetadata
+import io.deepsense.deeplang.doperables.dataframe.types.{NonEmptyColumnMetadata, EmptyColumnMetadata, ColumnMetadata, SparkConversions}
 import io.deepsense.deeplang.doperations.exceptions.{ColumnDoesNotExistException, ColumnsDoNotExistException}
 import io.deepsense.deeplang.inference.exceptions.NameNotUniqueException
 import io.deepsense.deeplang.inference.{InferenceWarning, InferenceWarnings, MultipleColumnsMayNotExistWarning, SingleColumnMayNotExistWarning}
-import ColumnType.ColumnType
 import io.deepsense.deeplang.parameters._
 
 /**
@@ -44,7 +44,7 @@ import io.deepsense.deeplang.parameters._
 case class DataFrameMetadata(
     isExact: Boolean,
     isColumnCountExact: Boolean,
-    columns: Map[String, ColumnMetadata])
+  columns: Map[String, ColumnKnowledge])
   extends DOperable.AbstractMetadata {
 
   /**
@@ -62,15 +62,15 @@ case class DataFrameMetadata(
   }
 
   /**
-   * Appends a column to metadata. If column count is exact, index of new column is calculated
-   * precisely. Otherwise index is set to unknown (None). In any case, index provided in metadata
-   * is ignored.
+   * Appends a column to knowledge. If column count is exact, index of new column is calculated
+   * precisely. Otherwise index is set to unknown (None). In any case, index provided in column
+   * knowledge is ignored.
    * Throws [[NameNotUniqueException]] if name is not unique.
    */
-  def appendColumn(columnMetadata: ColumnMetadata): DataFrameMetadata = {
+  def appendColumn(columnKnowledge: ColumnKnowledge): DataFrameMetadata = {
     val newIndex = if (isColumnCountExact) Some(columns.size) else None
-    val columnWithIndex = columnMetadata.withIndex(newIndex)
-    val name = columnMetadata.name
+    val columnWithIndex = columnKnowledge.copy(index = newIndex)
+    val name = columnKnowledge.name
     if (columns.contains(name)) {
       throw NameNotUniqueException(name)
     }
@@ -78,7 +78,7 @@ case class DataFrameMetadata(
   }
 
   /**
-   * Selects column from metadata basing on provided SingleColumnSelection.
+   * Selects column from knowledge based on provided SingleColumnSelection.
    * If isExact field is true and provided selector points to
    * column that is not in current metadata, ColumnDoesNotExistException will be thrown.
    * If isExact field is false and provided selector points to
@@ -87,21 +87,20 @@ case class DataFrameMetadata(
    */
   @throws[ColumnDoesNotExistException]
   def select(
-      columnSelection: SingleColumnSelection):
-      (Option[ColumnMetadata], InferenceWarnings) = {
-    val metadataOption = getMetadataOption(columnSelection)
-    if (metadataOption.isEmpty) {
+    columnSelection: SingleColumnSelection): (Option[ColumnKnowledge], InferenceWarnings) = {
+    val knowledgeOption = getKnowledgeOption(columnSelection)
+    if (knowledgeOption.isEmpty) {
       if (isExact) {
         throw ColumnDoesNotExistException(columnSelection, this)
       }
       (None, InferenceWarnings(SingleColumnMayNotExistWarning(columnSelection, this)))
     } else {
-      (metadataOption, InferenceWarnings.empty)
+      (knowledgeOption, InferenceWarnings.empty)
     }
   }
 
   /**
-   * Selects columns from metadata basing on provided MultipleColumnSelection.
+   * Selects columns from knowledge based on provided MultipleColumnSelection.
    * If isExact field is true and provided selector points to
    * columns that are not in current metadata, ColumnsDoNotExistException will be thrown.
    * If isExact field is false and provided selector points to
@@ -113,8 +112,8 @@ case class DataFrameMetadata(
    */
   @throws[ColumnsDoNotExistException]
   def select(
-      multipleColumnSelection: MultipleColumnSelection):
-      (Seq[ColumnMetadata], InferenceWarnings) = {
+    multipleColumnSelection: MultipleColumnSelection):
+  (Seq[ColumnKnowledge], InferenceWarnings) = {
     val warnings = assertColumnSelectionsValid(multipleColumnSelection)
     val selectedColumns = for {
       column <- orderedColumns
@@ -135,7 +134,7 @@ case class DataFrameMetadata(
    * @return Columns ordered by index.
    *         Columns without index will be listed at the end of the sequence.
    */
-  def orderedColumns: Seq[ColumnMetadata] = {
+  def orderedColumns: Seq[ColumnKnowledge] = {
     val values = columns.values
     val columnsSortedByIndex = values.filter(_.index.isDefined).toList.sortBy(_.index.get)
     val columnsWithoutIndex = values.filter(_.index.isEmpty).toList
@@ -143,9 +142,10 @@ case class DataFrameMetadata(
   }
 
   /**
-   * @return Some[ColumnMetadata] if columnSelection selects column, None otherwise
+   * @return Some[ColumnKnowledge] if columnSelection selects column, None otherwise
    */
-  private def getMetadataOption(columnSelection: SingleColumnSelection): Option[ColumnMetadata] = {
+  private def getKnowledgeOption(
+    columnSelection: SingleColumnSelection): Option[ColumnKnowledge] = {
     columnSelection match {
       case nameSelection: NameSingleColumnSelection =>
         columns.get(nameSelection.value)
@@ -177,7 +177,7 @@ case class DataFrameMetadata(
   }
 
   private def assertColumnSelectionsValid(
-      multipleColumnSelection: MultipleColumnSelection): Seq[InferenceWarning] = {
+    multipleColumnSelection: MultipleColumnSelection): Seq[InferenceWarning] = {
     val selections = multipleColumnSelection.selections
     val invalidSelections = selections.filterNot(isSelectionValid)
     if (invalidSelections.nonEmpty && isExact) {
@@ -201,12 +201,12 @@ case class DataFrameMetadata(
       namesIntersection.size == names.size
     case TypeColumnSelection(_) => true
     case IndexRangeColumnSelection(Some(lowerBound), Some(upperBound)) =>
-      val metadataIndexes = indexesSet()
+      val metadataIndexes = indexesSet
       (lowerBound to upperBound).toSet.subsetOf(metadataIndexes)
     case IndexRangeColumnSelection(_, _) => true
   }
 
-  private def indexesSet(): Set[Int] = {
+  private def indexesSet: Set[Int] = {
     columns.values.map(_.index).flatten.toSet
   }
 
@@ -223,7 +223,7 @@ object DataFrameMetadata {
       isExact = true,
       isColumnCountExact = true,
       columns = schema.zipWithIndex.map({ case (structField, index) =>
-        val rawResult = ColumnMetadata.fromStructField(structField, index)
+        val rawResult = ColumnKnowledge.fromStructField(structField, index)
         rawResult.name -> rawResult
       }).toMap
     )
@@ -233,111 +233,94 @@ object DataFrameMetadata {
     DOperable.AbstractMetadata.unwrap(jsValue).convertTo[DataFrameMetadata]
   }
 
-  def buildColumnsMap(columns: Seq[ColumnMetadata]): Map[String, ColumnMetadata] = {
+  def buildColumnsMap(columns: Seq[ColumnKnowledge]): Map[String, ColumnKnowledge] = {
     columns.map(column => column.name -> column).toMap
   }
 }
 
 /**
  * Represents knowledge about a column in DataFrame.
+ * @param name Name of column - always known.
+ * @param index Index of this column in DataFrame. None denotes unknown index.
+ * @param columnType Type of this column. None denotes unknown type.
+ * @param metadata Type specific metadata of this column. None denotes unknown metadata.
+ *                 Note: it is possible that in future we will have to support partially known
+ *                 metadata. In that case, we will need to construct a hierarchy of
+ *                 ColumnMetadataKnowledge that will mirror ColumnMetadata hierarchy.
  */
-sealed trait ColumnMetadata {
-  val name: String
-
-  /**
-   * Index of this column in DataFrame. None denotes unknown index.
-   */
-  val index: Option[Int]
-
-  /**
-   * Type of this column. None denotes unknown type.
-   */
-  def columnType: Option[ColumnType]
-
-  /**
-   * Assumes that this metadata contains full information.
-   */
-  private[dataframe] def toStructField: StructField
-
-  def withIndex(index: Option[Int]): ColumnMetadata
-
-  def prettyPrint: String = SchemaPrintingUtils.columnMetadataToString(this)
-}
-
-case class CommonColumnMetadata(
+case class ColumnKnowledge private[dataframe] (
     name: String,
     index: Option[Int],
-    columnType: Option[ColumnType])
-  extends ColumnMetadata {
+    columnType: Option[ColumnType],
+    metadata: Option[ColumnMetadata]) {
 
-  private[dataframe] def toStructField: StructField = StructField(
-    name = name,
-    dataType = SparkConversions.columnTypeToSparkColumnType(columnType.get)
-  )
+  metadata.foreach {
+    case m: NonEmptyColumnMetadata =>
+      require(m.columnType == columnType.get, "Metadata and columnType do not conform")
+    case _ => ()
+  }
 
-  def withIndex(index: Option[Int]): ColumnMetadata = copy(index = index)
+  def prettyPrint: String = SchemaPrintingUtils.columnKnowledgeToString(this)
+
+  /** Assumes that this knowledge contains full information. */
+  private[dataframe] def toStructField: StructField = {
+    require(index.isDefined && columnType.isDefined && metadata.isDefined,
+      "Cannot create StructField from partial knowledge about column.")
+    StructField(
+      name = name,
+      dataType = SparkConversions.columnTypeToSparkColumnType(columnType.get),
+      metadata = metadata.get.toSparkMetadata()
+    )
+  }
 }
 
-/**
- * Represents knowledge about categorical column.
- * @param categories Mapping of categories in this column.
- *                   If None, we don't know anything about categories in this column.
- *                   If Some, information about categories is exact.
- *                   There is no possibility to store partial knowledge about categories.
- */
-case class CategoricalColumnMetadata(
-    name: String,
-    index: Option[Int],
-    categories: Option[CategoriesMapping])
-  extends ColumnMetadata {
+object ColumnKnowledge {
 
-  def columnType: Option[ColumnType] = Some(ColumnType.categorical)
+  private[dataframe] def fromStructField(structField: StructField, index: Int): ColumnKnowledge = {
+    ColumnKnowledge(
+      name = structField.name,
+      index = Some(index),
+      columnType = Some(SparkConversions.sparkColumnTypeToColumnType(structField.dataType)),
+      metadata = Some(ColumnMetadata.fromStructField(structField))
+    )
+  }
 
-  private[dataframe] def toStructField: StructField = StructField(
-    name = name,
-    dataType = SparkConversions.columnTypeToSparkColumnType(columnType.get),
-    metadata = MappingMetadataConverter.mappingToMetadata(categories.get)
-  )
-
-  def withIndex(index: Option[Int]): ColumnMetadata = copy(index = index)
-}
-
-/**
- * Represents knowledge about fixed-size vector column.
- * @param vectorMetadata Vector-associated metadata about this column (None denotes unknown).
- */
-case class VectorColumnMetadata(
-    name: String,
-    index: Option[Int],
-    vectorMetadata: Option[VectorMetadata])
-  extends ColumnMetadata {
-
-  def columnType: Option[ColumnType] = Some(ColumnType.vector)
-
-  private[dataframe] def toStructField: StructField = StructField(
-    name = name,
-    dataType = SparkConversions.columnTypeToSparkColumnType(columnType.get),
-    metadata = VectorMetadataConverter.toSchemaMetadata(vectorMetadata.get)
-  )
-
-  def withIndex(index: Option[Int]): ColumnMetadata = copy(index = index)
-}
-
-object ColumnMetadata {
-
-  private[dataframe] def fromStructField(structField: StructField, index: Int): ColumnMetadata = {
-    val name = structField.name
-    MappingMetadataConverter.mappingFromMetadata(structField.metadata) match {
-      case Some(categoriesMapping) => CategoricalColumnMetadata(
-        name, Some(index), Some(categoriesMapping))
-      case None => VectorMetadataConverter.fromSchemaMetadata(structField.metadata) match {
-        case Some(vectorMetadata) => VectorColumnMetadata(
-          name, Some(index), Some(vectorMetadata))
-        case None => CommonColumnMetadata(
-          name = structField.name,
-          index = Some(index),
-          columnType = Some(SparkConversions.sparkColumnTypeToColumnType(structField.dataType)))
-      }
+  def apply(
+      name: String,
+      index: Option[Int],
+      columnType: Option[ColumnType]): ColumnKnowledge = {
+    columnType.foreach { case ct =>
+      require(ct != ColumnType.vector, "Use ColumnKnowledge.vector constructor")
+      require(ct != ColumnType.categorical, "Use ColumnKnowledge.categorical constructor")
     }
+    ColumnKnowledge(name, index, columnType, Some(EmptyColumnMetadata))
+  }
+
+  def categorical(
+      name: String,
+      index: Option[Int],
+      metadata: Option[CategoricalColumnMetadata]): ColumnKnowledge = {
+    ColumnKnowledge(name, index, Some(ColumnType.categorical), metadata)
+  }
+
+  def categorical(
+      name: String,
+      index: Option[Int],
+      mapping: CategoriesMapping): ColumnKnowledge = {
+    ColumnKnowledge.categorical(name, index, Some(CategoricalColumnMetadata(mapping)))
+  }
+
+  def vector(
+      name: String,
+      index: Option[Int],
+      metadata: Option[VectorColumnMetadata]): ColumnKnowledge = {
+    ColumnKnowledge(name, index, Some(ColumnType.vector), metadata)
+  }
+
+  def vector(
+      name: String,
+      index: Option[Int],
+      length: Long): ColumnKnowledge = {
+    ColumnKnowledge.vector(name, index, Some(VectorColumnMetadata(length)))
   }
 }

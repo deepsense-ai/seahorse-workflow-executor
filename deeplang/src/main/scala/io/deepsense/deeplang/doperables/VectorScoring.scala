@@ -22,7 +22,7 @@ import org.apache.spark.sql.Row
 import org.apache.spark.sql.types.{DoubleType, StructField, StructType}
 
 import io.deepsense.commons.types.ColumnType
-import io.deepsense.deeplang.doperables.dataframe.{CommonColumnMetadata, DataFrame, DataFrameBuilder}
+import io.deepsense.deeplang.doperables.dataframe.{ColumnKnowledge, DataFrame, DataFrameBuilder}
 import io.deepsense.deeplang.inference.{InferContext, InferenceWarnings}
 import io.deepsense.deeplang.{DKnowledge, DMethod1To1, ExecutionContext}
 
@@ -69,7 +69,7 @@ trait VectorScoring {
       // add support for checking if dataframe has correct columns
 
       val dataFrame = dataFrameKnowledge.types.head
-      val newColumn = CommonColumnMetadata(
+      val newColumn = ColumnKnowledge(
         predictionColumnName, index = None, columnType = Some(ColumnType.numeric))
       val outputMetadata = dataFrame.inferredMetadata.get.appendColumn(newColumn)
       val dKnowledge = DKnowledge(DataFrameBuilder.buildDataFrameForInference(outputMetadata))

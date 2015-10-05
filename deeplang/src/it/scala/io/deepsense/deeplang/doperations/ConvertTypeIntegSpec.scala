@@ -29,7 +29,7 @@ import io.deepsense.commons.types.ColumnType._
 import io.deepsense.deeplang.DeeplangIntegTestSupport
 import io.deepsense.deeplang.doperables.dataframe.DataFrame
 import io.deepsense.deeplang.doperables.dataframe.types.SparkConversions
-import io.deepsense.deeplang.doperables.dataframe.types.categorical.{CategoricalMapper, CategoriesMapping, MappingMetadataConverter}
+import io.deepsense.deeplang.doperables.dataframe.types.categorical.{CategoricalColumnMetadata, CategoricalMapper, CategoriesMapping}
 import io.deepsense.deeplang.doperations.exceptions.WrongColumnTypeException
 import io.deepsense.deeplang.parameters._
 
@@ -242,7 +242,7 @@ class ConvertTypeIntegSpec extends DeeplangIntegTestSupport {
   val categoricalColumn = {
     val original = Seq(0, null, 2)
     val mapping = CategoriesMapping(Seq("Category1", "Category2", "7.0"))
-    val metadata = MappingMetadataConverter.mappingToMetadata(mapping)
+    val metadata = CategoricalColumnMetadata(mapping).toSparkMetadata()
     val asString = unmapSeq(mapping, original)
     ColumnContainer(original, null, asString, original, mapping, metadata)
   }
@@ -251,7 +251,7 @@ class ConvertTypeIntegSpec extends DeeplangIntegTestSupport {
   val numCategoricalColumn = {
     val original = Seq(0, null, 2)
     val mapping = CategoriesMapping(Seq("5", "8", "13"))
-    val metadata = MappingMetadataConverter.mappingToMetadata(mapping)
+    val metadata = CategoricalColumnMetadata(mapping).toSparkMetadata()
     val asString = unmapSeq(mapping, original)
     val asDouble = Seq(5.0, null, 13.0)
     ColumnContainer(original, asDouble, asString, original, mapping, metadata)
@@ -260,7 +260,7 @@ class ConvertTypeIntegSpec extends DeeplangIntegTestSupport {
   val vectorColumn = {
     val original = Seq(Vectors.dense(1.0, 2.0), null, Vectors.sparse(2, Seq((1, 3.0))))
     val mapping = CategoriesMapping(Seq.empty)
-    val metadata = MappingMetadataConverter.mappingToMetadata(mapping)
+    val metadata = CategoricalColumnMetadata(mapping).toSparkMetadata()
     ColumnContainer(original, Seq.empty, Seq.empty, Seq.empty, mapping, metadata)
   }
 
@@ -289,10 +289,8 @@ class ConvertTypeIntegSpec extends DeeplangIntegTestSupport {
     vectorColumn
   )
 
-  val numCategoriesMeta = MappingMetadataConverter
-    .mappingToMetadata(numCategoricalColumn.mapping)
-  val nonNumCategoriesMeta = MappingMetadataConverter
-    .mappingToMetadata(categoricalColumn.mapping)
+  val numCategoriesMeta = CategoricalColumnMetadata(numCategoricalColumn.mapping).toSparkMetadata()
+  val nonNumCategoriesMeta = CategoricalColumnMetadata(categoricalColumn.mapping).toSparkMetadata()
 
   val schema = StructType(Seq(
     StructField("doubles", DoubleType), // 0
@@ -347,7 +345,9 @@ class ConvertTypeIntegSpec extends DeeplangIntegTestSupport {
           index,
           oldSchema(index).copy(
             dataType = IntegerType,
-            metadata = MappingMetadataConverter.mappingToMetadata(columns(index).mapping))))
+            metadata = CategoricalColumnMetadata(columns(index).mapping).toSparkMetadata()
+          )
+        ))
     }
 
     to(IntegerType, ids, Some(updatedSchema)){ _.asCategorical }

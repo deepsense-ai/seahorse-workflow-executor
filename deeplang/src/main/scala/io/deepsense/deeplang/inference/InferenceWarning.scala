@@ -17,9 +17,9 @@
 package io.deepsense.deeplang.inference
 
 import io.deepsense.commons.types.ColumnType
-import io.deepsense.deeplang.doperables.dataframe.{ColumnMetadata, DataFrameMetadata}
-import ColumnType.ColumnType
-import io.deepsense.deeplang.parameters.{SingleColumnSelection, ColumnSelection}
+import io.deepsense.commons.types.ColumnType.ColumnType
+import io.deepsense.deeplang.doperables.dataframe.{ColumnKnowledge, DataFrameMetadata}
+import io.deepsense.deeplang.parameters.{ColumnSelection, SingleColumnSelection}
 
 /**
  * Represents possibility that some exception will be thrown upon execution.
@@ -40,9 +40,9 @@ case class SingleColumnMayNotExistWarning(
     s"Column from specified selection: $selection may not exist in $metadata")
 
 case class ConversionMayNotBePossibleWarning(
-    columnMetadata: ColumnMetadata,
+    columnKnowledge: ColumnKnowledge,
     expectedType: ColumnType)
   extends InferenceWarning(
-    s"Column ${columnMetadata.name} with type ${columnMetadata.columnType}" +
+    s"Column ${columnKnowledge.name} with type ${columnKnowledge.columnType}" +
       s" may not be convertible to $expectedType")
 

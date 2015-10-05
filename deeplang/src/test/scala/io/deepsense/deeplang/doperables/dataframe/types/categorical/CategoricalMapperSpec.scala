@@ -41,11 +41,11 @@ class CategoricalMapperSpec extends UnitSpec {
       StructField(
         "categorical_1",
         IntegerType,
-        metadata = MappingMetadataConverter.mappingToMetadata(mappings("categorical_1"))),
+        metadata = CategoricalColumnMetadata(mappings("categorical_1")).toSparkMetadata()),
       StructField(
         "categorical_2",
         IntegerType,
-        metadata = MappingMetadataConverter.mappingToMetadata(mappings("categorical_2")))
+        metadata = CategoricalColumnMetadata(mappings("categorical_2")).toSparkMetadata())
     ))
 
     "update schema based on mappings" in {

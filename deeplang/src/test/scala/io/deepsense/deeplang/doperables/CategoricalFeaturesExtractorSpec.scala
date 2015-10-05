@@ -37,22 +37,22 @@ class CategoricalFeaturesExtractorSpec extends UnitSpec {
 
       "metadata has no categorical columns" in {
         verifyResult(createMetadata(
-          CommonColumnMetadata("col0", Some(0), Some(ColumnType.boolean)),
-          CommonColumnMetadata("col1", Some(1), Some(ColumnType.numeric)),
-          CommonColumnMetadata("col2", Some(2), Some(ColumnType.string)),
-          CommonColumnMetadata("col3", Some(3), Some(ColumnType.timestamp))
+          ColumnKnowledge("col0", Some(0), Some(ColumnType.boolean)),
+          ColumnKnowledge("col1", Some(1), Some(ColumnType.numeric)),
+          ColumnKnowledge("col2", Some(2), Some(ColumnType.string)),
+          ColumnKnowledge("col3", Some(3), Some(ColumnType.timestamp))
         ), Seq("col0", "col1", "col2", "col3"), Map.empty)
       }
 
       "categorical column has no categories" in {
         verifyResult(createMetadata(
-          CategoricalColumnMetadata("col0", Some(0), None)
+          ColumnKnowledge.categorical("col0", Some(0), None)
         ), Seq("col0"), Map.empty)
       }
 
       "no categorical column is selected" in {
         verifyResult(createMetadata(
-          CategoricalColumnMetadata("col0", Some(0), Some(CategoriesMapping(Seq("cat1", "cat2"))))
+          ColumnKnowledge.categorical("col0", Some(0), CategoriesMapping(Seq("cat1", "cat2")))
         ), Seq.empty, Map.empty)
       }
     }
@@ -60,19 +60,19 @@ class CategoricalFeaturesExtractorSpec extends UnitSpec {
     "extract mappings for categorical columns" when {
       "metadata has categorical column" in {
         verifyResult(createMetadata(
-          CategoricalColumnMetadata("col0", Some(0), Some(CategoriesMapping(Seq("cat1", "cat2"))))
+          ColumnKnowledge.categorical("col0", Some(0), CategoriesMapping(Seq("cat1", "cat2")))
         ), Seq("col0"), Map(0 -> 2))
       }
 
       "metadata has multiple columns" in {
         verifyResult(createMetadata(
-          CategoricalColumnMetadata("col0", Some(0), Some(CategoriesMapping(Seq("cat1", "cat2")))),
-          CommonColumnMetadata("col1", Some(1), Some(ColumnType.boolean)),
-          CategoricalColumnMetadata("col2", Some(2), Some(CategoriesMapping(Seq("cat1")))),
-          CommonColumnMetadata("col3", Some(3), Some(ColumnType.numeric)),
-          CategoricalColumnMetadata("col4", Some(4), Some(CategoriesMapping(Seq.empty))),
-          CategoricalColumnMetadata("no-index", None, Some(CategoriesMapping(Seq.empty))),
-          CategoricalColumnMetadata("no-categories", Some(100), None)
+          ColumnKnowledge.categorical("col0", Some(0), CategoriesMapping(Seq("cat1", "cat2"))),
+          ColumnKnowledge("col1", Some(1), Some(ColumnType.boolean)),
+          ColumnKnowledge.categorical("col2", Some(2), CategoriesMapping(Seq("cat1"))),
+          ColumnKnowledge("col3", Some(3), Some(ColumnType.numeric)),
+          ColumnKnowledge.categorical("col4", Some(4), CategoriesMapping(Seq.empty)),
+          ColumnKnowledge.categorical("no-index", None, CategoriesMapping(Seq.empty)),
+          ColumnKnowledge.categorical("no-categories", Some(100), None)
         ),
           Seq("col0", "col1", "col2", "col3", "col4", "no-index", "no-categories"),
           Map(0 -> 2, 2 -> 1))
@@ -80,13 +80,13 @@ class CategoricalFeaturesExtractorSpec extends UnitSpec {
 
       "only some features are selected" in {
         verifyResult(createMetadata(
-          CategoricalColumnMetadata("col0", Some(0), Some(CategoriesMapping(Seq("cat1", "cat2")))),
-          CommonColumnMetadata("col1", Some(1), Some(ColumnType.boolean)),
-          CategoricalColumnMetadata("col2", Some(2), Some(CategoriesMapping(Seq("cat1")))),
-          CommonColumnMetadata("col3", Some(3), Some(ColumnType.numeric)),
-          CategoricalColumnMetadata("col4", Some(4), Some(CategoriesMapping(Seq.empty))),
-          CategoricalColumnMetadata("no-index", None, Some(CategoriesMapping(Seq.empty))),
-          CategoricalColumnMetadata("no-categories", Some(100), None)
+          ColumnKnowledge.categorical("col0", Some(0), CategoriesMapping(Seq("cat1", "cat2"))),
+          ColumnKnowledge("col1", Some(1), Some(ColumnType.boolean)),
+          ColumnKnowledge.categorical("col2", Some(2), CategoriesMapping(Seq("cat1"))),
+          ColumnKnowledge("col3", Some(3), Some(ColumnType.numeric)),
+          ColumnKnowledge.categorical("col4", Some(4), CategoriesMapping(Seq.empty)),
+          ColumnKnowledge.categorical("no-index", None, CategoriesMapping(Seq.empty)),
+          ColumnKnowledge.categorical("no-categories", Some(100), None)
         ),
           Seq("col2", "col0", "col4", "no-categories"),
           Map(0 -> 1, 1 -> 2))
@@ -105,7 +105,7 @@ class CategoricalFeaturesExtractorSpec extends UnitSpec {
     extractedMappings should contain theSameElementsAs expectedResult
   }
 
-  private def createMetadata(columns: ColumnMetadata*): Option[DataFrameMetadata] = {
+  private def createMetadata(columns: ColumnKnowledge*): Option[DataFrameMetadata] = {
     Some(DataFrameMetadata(false, false, columns.map(c => c.name -> c).toMap))
   }
 }

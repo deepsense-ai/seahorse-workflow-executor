@@ -23,5 +23,5 @@ case class ColumnDoesNotExistException(
     selection: SingleColumnSelection,
     dataFrameMetadata: DataFrameMetadata) extends DOperationExecutionException(
   s"Column from specified selection: $selection does not exist in " +
-    s"${SchemaPrintingUtils.columnsMetadataToSchemaString(dataFrameMetadata.orderedColumns)}",
+    s"${SchemaPrintingUtils.columnsKnowledgeToSchemaString(dataFrameMetadata.orderedColumns)}",
   None)

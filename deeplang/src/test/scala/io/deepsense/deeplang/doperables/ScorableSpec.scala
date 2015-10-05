@@ -19,7 +19,7 @@ package io.deepsense.deeplang.doperables
 import org.mockito.Mockito._
 
 import io.deepsense.commons.types.ColumnType
-import io.deepsense.deeplang.doperables.dataframe.{DataFrameBuilder, CommonColumnMetadata, DataFrame, DataFrameMetadata}
+import io.deepsense.deeplang.doperables.dataframe._
 import io.deepsense.deeplang.inference.{InferContext, InferenceWarnings}
 import io.deepsense.deeplang.{DKnowledge, UnitSpec}
 
@@ -36,7 +36,7 @@ abstract class ScorableSpec[T <: Scorable] extends UnitSpec {
         isExact = false,
         isColumnCountExact = false,
         columns = Map(
-          "num_col" -> CommonColumnMetadata("num_col", Some(0), Some(ColumnType.numeric)))
+          "num_col" -> ColumnKnowledge("num_col", Some(0), Some(ColumnType.numeric)))
       )
 
       val columnName = "prediction"
@@ -45,8 +45,8 @@ abstract class ScorableSpec[T <: Scorable] extends UnitSpec {
         isExact = false,
         isColumnCountExact = false,
         columns = Map(
-          "num_col" -> CommonColumnMetadata("num_col", Some(0), Some(ColumnType.numeric)),
-          columnName -> CommonColumnMetadata(columnName, None, Some(ColumnType.numeric))
+          "num_col" -> ColumnKnowledge("num_col", Some(0), Some(ColumnType.numeric)),
+          columnName -> ColumnKnowledge(columnName, None, Some(ColumnType.numeric))
         )
       )
 
