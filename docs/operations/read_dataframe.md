@@ -26,6 +26,9 @@ If `convert to boolean` mode is enabled, columns that contain only zeros, ones a
 inferred as `Boolean`.
 In particular, column consisting of empty cells will be inferred as ``Boolean`` containing ``null`` values only.
 
+Vector column type is not supported in reading DataFrame from CSV file. Vector columns in CSV file
+will be treated as String columns.
+
 Operation assumes that each row in file has the same number of fields.
 In other case, behavior of operation is undefined.
 
@@ -62,6 +65,8 @@ It is possible to select columns to be Categorical
 (by index, by name or by inferred type) using ``column selector``.
 When categorizing a non-string column all values will be cast to strings and trimmed first.
 
+Vector column type is not supported in reading DataFrame from JSON file. Vector columns in JSON file
+will be treated as String columns.
 
 
 **Since**: Seahorse 0.4.0

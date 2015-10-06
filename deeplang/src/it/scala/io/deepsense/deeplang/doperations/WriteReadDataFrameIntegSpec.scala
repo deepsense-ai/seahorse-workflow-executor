@@ -18,8 +18,9 @@ package io.deepsense.deeplang.doperations
 
 import java.sql.Timestamp
 
+import org.apache.spark.mllib.linalg.Vectors
 import org.apache.spark.sql.Row
-import org.apache.spark.sql.types.{StructField, StructType}
+import org.apache.spark.sql.types.{Metadata, StructField, StructType}
 import org.scalatest.BeforeAndAfter
 
 import io.deepsense.commons.types.ColumnType
@@ -27,6 +28,7 @@ import io.deepsense.deeplang.DeeplangIntegTestSupport
 import io.deepsense.deeplang.doperables.dataframe.DataFrame
 import io.deepsense.deeplang.doperables.dataframe.types.SparkConversions
 import io.deepsense.deeplang.doperables.dataframe.types.categorical.{CategoriesMapping, MappingMetadataConverter}
+import io.deepsense.deeplang.doperables.dataframe.types.vector.{VectorMetadata, VectorMetadataConverter}
 import io.deepsense.deeplang.doperations.CsvParameters.ColumnSeparator
 import io.deepsense.deeplang.parameters._
 
@@ -50,14 +52,17 @@ class WriteReadDataFrameIntegSpec
     StructField("string",
       SparkConversions.columnTypeToSparkColumnType(ColumnType.string)),
     StructField("timestamp",
-      SparkConversions.columnTypeToSparkColumnType(ColumnType.timestamp))
+      SparkConversions.columnTypeToSparkColumnType(ColumnType.timestamp)),
+    StructField("vector",
+      SparkConversions.columnTypeToSparkColumnType(ColumnType.vector),
+      metadata = VectorMetadataConverter.toSchemaMetadata(VectorMetadata(3)))
   ))
 
   val rows = Seq(
-    Row(true, 0, 0.45, "3.14", timestamp),
-    Row(false, 1, null, "\"testing...\"", null),
-    Row(false, 2, 3.14159, "Hello, world!", timestamp),
-    Row(null, null, null, null, null)
+    Row(true, 0, 0.45, "3.14", timestamp, Vectors.dense(1.0, 2.0, 3.0)),
+    Row(false, 1, null, "\"testing...\"", null, Vectors.sparse(3, Seq((1, 4.0)))),
+    Row(false, 2, 3.14159, "Hello, world!", timestamp, Vectors.dense(0.1, 0.2, 0.3)),
+    Row(null, null, null, null, null, null)
   )
 
   val dataFrame = createDataFrame(rows, schema)
@@ -72,6 +77,29 @@ class WriteReadDataFrameIntegSpec
         FileFormat.PARQUET,
         absoluteWriteReadDataFrameTestPath + "/parquet")
       wdf.execute(executionContext)(Vector(dataFrame))
+
+      val rdf = ReadDataFrame(
+        absoluteWriteReadDataFrameTestPath + "/parquet",
+        FileFormat.PARQUET)
+      val loadedDataFrame = rdf.execute(executionContext)(Vector()).head.asInstanceOf[DataFrame]
+
+      assertDataFramesEqual(loadedDataFrame, dataFrame, checkRowOrder = false)
+    }
+
+    "insert vector metadata when reading PARQUET file" in {
+      val convertedSchema = schema.copy()
+      val vectorFieldIndex = convertedSchema.fieldIndex("vector")
+      convertedSchema.fields.update(
+        vectorFieldIndex,
+        convertedSchema.fields(vectorFieldIndex).copy(metadata = Metadata.empty)
+      )
+
+      val convertedDataFrame = createDataFrame(rows, convertedSchema)
+
+      val wdf = WriteDataFrame(
+        FileFormat.PARQUET,
+        absoluteWriteReadDataFrameTestPath + "/parquet")
+      wdf.execute(executionContext)(Vector(convertedDataFrame))
 
       val rdf = ReadDataFrame(
         absoluteWriteReadDataFrameTestPath + "/parquet",

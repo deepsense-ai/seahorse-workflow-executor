@@ -34,6 +34,7 @@ import org.apache.spark.sql.{Row, types}
 
 import io.deepsense.commons.datetime.DateTimeConverter
 import io.deepsense.deeplang.DOperation.Id
+import io.deepsense.deeplang.doperables.dataframe.types.vector.VectorMetadataInference
 import io.deepsense.deeplang.doperables.dataframe.{DataFrame, DataFrameColumnsGetter}
 import io.deepsense.deeplang.doperations.CsvParameters.ColumnSeparator
 import io.deepsense.deeplang.doperations.exceptions.{DeepSenseIOException, InvalidFileException}
@@ -41,7 +42,10 @@ import io.deepsense.deeplang.parameters.FileFormat.FileFormat
 import io.deepsense.deeplang.parameters._
 import io.deepsense.deeplang.{DOperation0To1, ExecutionContext, FileSystemClient}
 
-case class ReadDataFrame() extends DOperation0To1[DataFrame] with ReadDataFrameParameters {
+case class ReadDataFrame() extends DOperation0To1[DataFrame]
+    with ReadDataFrameParameters
+    with VectorMetadataInference {
+
   import io.deepsense.deeplang.doperations.ReadDataFrame._
 
   override val id: Id = "c48dd54c-6aef-42df-ad7a-42fc59a09f0e"
@@ -70,8 +74,9 @@ case class ReadDataFrame() extends DOperation0To1[DataFrame] with ReadDataFrameP
           }
           dataFrameFromCSV(context, lines, categoricalColumnsParameter.value)
         case FileFormat.PARQUET =>
-          context.dataFrameBuilder
+          val dataFrame = context.dataFrameBuilder
             .buildDataFrame(context.sqlContext.read.parquet(path))
+          inferVectorMetadata(context, dataFrame)
         case FileFormat.JSON =>
           val dataFrame = context.dataFrameBuilder
             .buildDataFrame(context.sqlContext.read.json(path))
