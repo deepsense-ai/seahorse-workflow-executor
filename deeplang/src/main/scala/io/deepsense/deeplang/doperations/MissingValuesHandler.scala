@@ -28,7 +28,7 @@ import io.deepsense.commons.types.ColumnType.ColumnType
 import io.deepsense.deeplang.DOperation._
 import io.deepsense.deeplang.doperables.dataframe.{CategoricalColumnMetadata, ColumnMetadata, DataFrame}
 import io.deepsense.deeplang.doperations.MissingValuesHandler.{EmptyColumnsMode, Strategy}
-import io.deepsense.deeplang.doperations.exceptions.{MultipleTypesReplacementException, WrongReplacementValueException}
+import io.deepsense.deeplang.doperations.exceptions._
 import io.deepsense.deeplang.inference.{InferContext, InferenceWarnings}
 import io.deepsense.deeplang.parameters.ChoiceParameter.BinaryChoice
 import io.deepsense.deeplang.parameters._
@@ -127,6 +127,12 @@ case class MissingValuesHandler()
       throw new MultipleTypesReplacementException(columnTypes)
     }
 
+    if (columnTypes.values.toSet.contains(ColumnType.vector)) {
+      throw WrongColumnTypeException(
+        s"Cannot use '${Strategy.REPLACE_WITH_CUSTOM_VALUE}' strategy "
+          + s"for columns of type '${ColumnType.vector}'.")
+    }
+
     MissingValuesHandlerUtils.replaceNulls(context, dataFrame, columns,
       columnName =>
         ReplaceWithCustomValueStrategy.convertReplacementValue(
@@ -138,6 +144,12 @@ case class MissingValuesHandler()
       dataFrame: DataFrame,
       columns: Seq[String],
       indicator: Option[String]) = {
+
+    if (columns.map(dataFrame.columnType(_)).contains(ColumnType.vector)) {
+      throw WrongColumnTypeException(
+        s"Cannot use '${Strategy.REPLACE_WITH_MODE}' strategy "
+          + s"for columns of type '${ColumnType.vector}'.")
+    }
 
     val columnModes = Map(columns.map(column =>
       (column -> calculateMode(dataFrame, column))): _*)

@@ -141,11 +141,13 @@ or by index does not exist the operation will fail at runtime with <code>Columns
 </tr>
 <tr>
 <td><code>replace with custom value</code></td>
-<td>Replaces empty values with custom value (within selected column range).</td>
+<td>Replaces empty values with custom value (within selected column range).
+This strategy cannot be used with Vector columns.</td>
 </tr>
 <tr>
 <td><code>replace with mode</code></td>
-<td>Replaces empty values within selected column range with the mode (most frequently occuring value in a column).</td>
+<td>Replaces empty values within selected column range with the mode (most frequently occuring value in a column).
+This strategy cannot be used with Vector columns.</td>
 </tr>
 </tbody>
 </table>
