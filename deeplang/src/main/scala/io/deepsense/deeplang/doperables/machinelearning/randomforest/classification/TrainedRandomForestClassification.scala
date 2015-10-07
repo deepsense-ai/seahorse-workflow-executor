@@ -43,7 +43,9 @@ case class TrainedRandomForestClassification(
   override def transformFeatures(v: RDD[Vector]): RDD[Vector] = v
 
   override def vectors(dataFrame: DataFrame): RDD[Vector] =
-    dataFrame.selectSparkVectorRDD(featureColumns, ColumnTypesPredicates.isNumericOrCategorical)
+    dataFrame.selectSparkVectorRDD(
+      featureColumns,
+      ColumnTypesPredicates.isNumericOrNonTrivialCategorical)
 
   override def predict(vectors: RDD[Vector]): RDD[Double] = model.predict(vectors)
 

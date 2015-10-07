@@ -46,7 +46,7 @@ case class UntrainedRandomForestRegression(
         targetColumn,
         featureColumns,
         labelPredicate = ColumnTypesPredicates.isNumeric,
-        featurePredicate = ColumnTypesPredicates.isNumericOrCategorical)
+        featurePredicate = ColumnTypesPredicates.isNumericOrNonTrivialCategorical)
 
       labeledPoints.cache()
 

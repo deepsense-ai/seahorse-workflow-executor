@@ -46,7 +46,7 @@ case class UntrainedRandomForestClassification(
         targetColumn,
         featureColumns,
         labelPredicate = ColumnTypesPredicates.isNumericOrBinaryValued,
-        featurePredicate = ColumnTypesPredicates.isNumericOrCategorical)
+        featurePredicate = ColumnTypesPredicates.isNumericOrNonTrivialCategorical)
 
       labeledPoints.cache()
 

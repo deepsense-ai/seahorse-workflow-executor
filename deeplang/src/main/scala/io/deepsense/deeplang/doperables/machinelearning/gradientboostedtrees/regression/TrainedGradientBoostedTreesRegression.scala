@@ -79,7 +79,9 @@ case class TrainedGradientBoostedTreesRegression(
   override def save(context: ExecutionContext)(path: String): Unit = ???
 
   override def vectors(dataFrame: DataFrame): RDD[linalg.Vector] =
-    dataFrame.selectSparkVectorRDD(featureColumns, ColumnTypesPredicates.isNumericOrCategorical)
+    dataFrame.selectSparkVectorRDD(
+      featureColumns,
+      ColumnTypesPredicates.isNumericOrNonTrivialCategorical)
 
   override def predict(vectors: RDD[linalg.Vector]): RDD[Double] = model.predict(vectors)
 
