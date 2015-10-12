@@ -19,7 +19,7 @@ import sbt._
 object Version {
   val akka          = "2.3.4-spark"
   val amazonS3      = "1.10.16"
-  val spark         = "1.5.0"
+  val spark         = "1.5.1"
   val hadoop        = "2.6.0"
   val apacheCommons = "3.3.+"
   val sprayJson     = "1.3.1"
