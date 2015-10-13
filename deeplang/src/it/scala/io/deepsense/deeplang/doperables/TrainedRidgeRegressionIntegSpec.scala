@@ -18,42 +18,60 @@ package io.deepsense.deeplang.doperables
 
 import org.apache.spark.mllib.feature.StandardScalerModel
 import org.apache.spark.mllib.linalg.{Vector => SparkVector, Vectors}
-import org.apache.spark.mllib.regression.{GeneralizedLinearModel, RidgeRegressionModel}
+import org.apache.spark.mllib.regression.RidgeRegressionModel
 import org.apache.spark.rdd.RDD
+import org.mockito.AdditionalAnswers._
 import org.mockito.Matchers.any
-import org.mockito.Mockito.when
-import org.mockito.invocation.InvocationOnMock
-import org.mockito.stubbing.Answer
+import org.mockito.Mockito._
 
+import io.deepsense.deeplang.PrebuiltTypedColumns.ExtendedColumnType
+import io.deepsense.deeplang.PrebuiltTypedColumns.ExtendedColumnType.ExtendedColumnType
+import io.deepsense.deeplang.doperables.machinelearning.LinearRegressionParameters
 import io.deepsense.deeplang.doperables.machinelearning.ridgeregression.TrainedRidgeRegression
 
-class TrainedRidgeRegressionIntegSpec extends TrainedRegressionIntegSpec[RidgeRegressionModel] {
+class TrainedRidgeRegressionIntegSpec
+  extends ScorableBaseIntegSpec("TrainedRidgeRegression")
+  with PredictorModelBaseIntegSpec {
 
-  private val scaledVectors = Seq(
-    Vectors.dense(-0.1, 0.2),
-    Vectors.dense(0.0, 0.4),
-    Vectors.dense(0.1, -0.2))
+  override def acceptedFeatureTypes: Seq[ExtendedColumnType] = Seq(
+    ExtendedColumnType.binaryValuedNumeric,
+    ExtendedColumnType.nonBinaryValuedNumeric)
 
-  override def regressionName: String = "TrainedRidgeRegression"
+  override def unacceptableFeatureTypes: Seq[ExtendedColumnType] = Seq(
+    ExtendedColumnType.categorical1,
+    ExtendedColumnType.categorical2,
+    ExtendedColumnType.categoricalMany,
+    ExtendedColumnType.boolean,
+    ExtendedColumnType.string,
+    ExtendedColumnType.timestamp)
 
-  override val modelType: Class[RidgeRegressionModel] = classOf[RidgeRegressionModel]
-  override val inputVectorsTransformer: (Seq[SparkVector]) => Seq[SparkVector] = a => scaledVectors
-  override val regressionConstructor: (GeneralizedLinearModel, Seq[String], String) => Scorable =
-    (model, featureColumns, targetColumn) => TrainedRidgeRegression(
-      model.asInstanceOf[RidgeRegressionModel],
-      featureColumns,
-      targetColumn,
-      createScalerMock())
+  override def mockTrainedModel(): PredictorSparkModel = {
+    class RidgeRegressionPredictor
+      extends RidgeRegressionModel(Vectors.dense(1), 1) with PredictorSparkModel {}
+    mock[RidgeRegressionPredictor]
+  }
 
-  private def createScalerMock(): StandardScalerModel = {
-    val mockScaler = mock[StandardScalerModel]
-    when(mockScaler.transform(any[RDD[SparkVector]]())).thenAnswer(new Answer[RDD[SparkVector]] {
-      override def answer(invocationOnMock: InvocationOnMock): RDD[SparkVector] = {
-        val receivedRDD = invocationOnMock.getArgumentAt(0, classOf[RDD[SparkVector]])
-        receivedRDD.collect() shouldBe inputVectors
-        sparkContext.parallelize(scaledVectors)
-      }
-    })
-    mockScaler
+  override def createScorableInstanceWithModel(trainedModelMock: PredictorSparkModel): Scorable =
+    createScorableInstanceImpl(
+      trainedModelMock.asInstanceOf[RidgeRegressionModel], mock[Seq[String]])
+
+  override def createScorableInstance(features: String*): Scorable =
+    createScorableInstanceImpl(new RidgeRegressionModel(Vectors.dense(1), 1), features)
+
+  private def createScorableInstanceImpl(
+      trainedModelMock: RidgeRegressionModel, features: Seq[String]): Scorable = {
+
+    val scalerMock = mock[StandardScalerModel]
+
+    doAnswer(returnsFirstArg())
+      .when(scalerMock)
+      .transform(any[RDD[SparkVector]])
+
+    TrainedRidgeRegression(
+      LinearRegressionParameters(1, 1, 1),
+      trainedModelMock,
+      features,
+      targetColumnName,
+      scalerMock)
   }
 }

@@ -16,8 +16,11 @@
 
 package io.deepsense.deeplang.doperables
 
+import org.apache.spark.mllib.linalg.Vector
+
 import io.deepsense.commons.types.ColumnType
 import io.deepsense.commons.types.ColumnType.ColumnType
+import io.deepsense.commons.utils.DoubleUtils
 import io.deepsense.reportlib.model.{ReportContent, Table}
 
 case class DOperableReporter(title: String, tables: List[Table] = List.empty) {
@@ -35,6 +38,32 @@ case class DOperableReporter(title: String, tables: List[Table] = List.empty) {
       List(parameters.map(_._3).map(Some(_)).toList))
 
     DOperableReporter(title, tables :+ parametersTable)
+  }
+
+  def withWeights(featureColumns: Seq[String], weights: Seq[Double]): DOperableReporter = {
+    val rows = featureColumns.zip(weights).map {
+      case (name, weight) => List(Some(name), Some(DoubleUtils.double2String(weight)))
+    }.toList
+
+    val weightsTable = Table(
+      name = "Model weights",
+      description = "",
+      columnNames = Some(List("Column", "Weight")),
+      columnTypes = List(ColumnType.string, ColumnType.numeric),
+      rowNames = None,
+      values = rows)
+    DOperableReporter(title, tables :+ weightsTable)
+  }
+
+  def withIntercept(interceptValue: Double): DOperableReporter = {
+    val interceptTable = Table(
+      name = "Intercept",
+      description = "",
+      columnNames = None,
+      columnTypes = List(ColumnType.numeric),
+      rowNames = None,
+      values = List(List(Some(interceptValue.toString))))
+    DOperableReporter(title, tables :+ interceptTable)
   }
 
   def withVectorScoring(operable: VectorScoring): DOperableReporter = {
@@ -57,6 +86,28 @@ case class DOperableReporter(title: String, tables: List[Table] = List.empty) {
     DOperableReporter(title, tables :+ featureColumnsTable :+ targetColumnTable)
   }
 
-  def report(): Report = Report(ReportContent(title, tables))
+  def withCustomTable(
+      name: String,
+      description: String,
+      columns: (String, ColumnType, Seq[String])*): DOperableReporter = {
+
+    val (columnNames, columnTypes, columnValues) = columns.unzip3
+    val rowCount = columnValues.map(_.length).max
+
+    val padded = columnValues.map(_.padTo(rowCount, ""))
+    val rows = padded.transpose.map(_.map(Some(_)))
+
+    val table = Table(
+      name,
+      description,
+      Some(columnNames.toList),
+      columnTypes.toList,
+      None,
+      rows.map(_.toList).toList)
+
+    DOperableReporter(title, tables :+ table)
+  }
+
+  def report: Report = Report(ReportContent(title, tables))
 
 }

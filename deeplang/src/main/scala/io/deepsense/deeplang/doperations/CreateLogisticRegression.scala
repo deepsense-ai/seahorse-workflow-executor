@@ -19,7 +19,7 @@ package io.deepsense.deeplang.doperations
 import scala.reflect.runtime.{universe => ru}
 
 import org.apache.spark.mllib.classification.LogisticRegressionWithLBFGS
-import io.deepsense.deeplang.doperables.machinelearning.logisticregression.UntrainedLogisticRegression
+import io.deepsense.deeplang.doperables.machinelearning.logisticregression.{LogisticRegressionParameters, UntrainedLogisticRegression}
 import io.deepsense.deeplang.parameters.{NumericParameter, ParametersSchema, RangeValidator}
 import io.deepsense.deeplang.{DOperation, DOperation0To1, ExecutionContext}
 
@@ -40,7 +40,7 @@ case class CreateLogisticRegression() extends DOperation0To1[UntrainedLogisticRe
       validator = RangeValidator(begin = 0.0, end = Double.PositiveInfinity)),
     IterationsNumberKey -> NumericParameter(
       description = "Max number of iterations to perform",
-      default = Some(1.0),
+      default = Some(10.0),
       validator = RangeValidator(begin = 1.0, end = EndOfRange, step = Some(1.0))),
     Tolerance -> NumericParameter(
       description = "The convergence tolerance of iterations for LBFGS. " +
@@ -49,9 +49,9 @@ case class CreateLogisticRegression() extends DOperation0To1[UntrainedLogisticRe
       validator = RangeValidator(begin = 0.0, end = EndOfRange, beginIncluded = false)))
 
   override protected def _execute(context: ExecutionContext)(): UntrainedLogisticRegression = {
-    val regParam = parameters.getDouble(Regularization).get
-    val iterationsParam = parameters.getDouble(IterationsNumberKey).get
-    val toleranceParam = parameters.getDouble(Tolerance).get
+    val regParam = parameters.getDouble(Regularization)
+    val iterationsParam = parameters.getDouble(IterationsNumberKey)
+    val toleranceParam = parameters.getDouble(Tolerance)
 
     def createModelInstance(): LogisticRegressionWithLBFGS = {
       val model = new LogisticRegressionWithLBFGS
@@ -67,10 +67,11 @@ case class CreateLogisticRegression() extends DOperation0To1[UntrainedLogisticRe
       model
     }
 
+    val modelParameters = LogisticRegressionParameters(regParam, iterationsParam, toleranceParam)
     // We're passing a factory method here, instead of constructed object,
     // because the resulting UntrainedLogisticRegression could be used multiple times
     // in a workflow and its underlying Spark model is mutable
-    UntrainedLogisticRegression(createModelInstance)
+    UntrainedLogisticRegression(modelParameters, createModelInstance)
   }
 }
 
@@ -84,11 +85,11 @@ object CreateLogisticRegression {
       : CreateLogisticRegression = {
     val createLogisticRegression: CreateLogisticRegression = CreateLogisticRegression()
     createLogisticRegression.parameters.getNumericParameter(
-      CreateLogisticRegression.Regularization).value = Some(regularization)
+      CreateLogisticRegression.Regularization).value = regularization
     createLogisticRegression.parameters.getNumericParameter(
-      CreateLogisticRegression.IterationsNumberKey).value = Some(numberOfIterations)
+      CreateLogisticRegression.IterationsNumberKey).value = numberOfIterations
     createLogisticRegression.parameters.getNumericParameter(
-      CreateLogisticRegression.Tolerance).value = Some(tolerance)
+      CreateLogisticRegression.Tolerance).value = tolerance
     createLogisticRegression
   }
 }

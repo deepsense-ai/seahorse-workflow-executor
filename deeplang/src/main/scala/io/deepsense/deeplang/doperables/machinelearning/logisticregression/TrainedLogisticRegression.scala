@@ -20,16 +20,16 @@ import scala.concurrent.Future
 
 import org.apache.spark.mllib.classification.LogisticRegressionModel
 import org.apache.spark.mllib.linalg.Vector
-import org.apache.spark.mllib.regression.GeneralizedLinearModel
 import org.apache.spark.rdd.RDD
 
 import io.deepsense.commons.types.ColumnType
+import io.deepsense.deeplang.doperables.ColumnTypesPredicates._
+import io.deepsense.commons.utils.DoubleUtils
 import io.deepsense.deeplang.doperables._
-import io.deepsense.deeplang.doperables.dataframe.DataFrame
 import io.deepsense.deeplang.{DOperable, ExecutionContext, Model}
-import io.deepsense.reportlib.model.{ReportContent, Table}
 
 case class TrainedLogisticRegression(
+    modelParameters: LogisticRegressionParameters,
     model: LogisticRegressionModel,
     featureColumns: Seq[String],
     targetColumn: String)
@@ -37,36 +37,38 @@ case class TrainedLogisticRegression(
   with Scorable
   with VectorScoring {
 
-  def this() = this(null, null, null)
+  def this() = this(null, null, null, null)
 
   override def toInferrable: DOperable = new TrainedLogisticRegression()
 
   private var physicalPath: Option[String] = None
 
-  def preparedModel: GeneralizedLinearModel = model.clearThreshold()
+  override def featurePredicate: Predicate = ColumnTypesPredicates.isNumeric
 
   override def transformFeatures(v: RDD[Vector]): RDD[Vector] = v
 
-  override def vectors(dataFrame: DataFrame): RDD[Vector] =
-    dataFrame.selectSparkVectorRDD(featureColumns, ColumnTypesPredicates.isNumeric)
-
-  override def predict(vectors: RDD[Vector]): RDD[Double] = preparedModel.predict(vectors)
+  override def predict(features: RDD[Vector]): RDD[Double] =
+    model
+      .clearThreshold()
+      .predict(features)
 
   override def url: Option[String] = physicalPath
 
   override def report(executionContext: ExecutionContext): Report = {
-    val featureColumnsColumn = featureColumns.toList.map(Some.apply)
-    val targetColumnColumn = List(Some(targetColumn))
-    val rows = featureColumnsColumn.zipAll(targetColumnColumn, Some(""), Some(""))
-      .map{ case (a, b) => List(a, b) }
-
-    val table = Table(
-      "Trained Logistic Regression", "",
-      Some(List("Feature columns", "Target column")),
-      List(ColumnType.string, ColumnType.string),
-      None, rows)
-
-    Report(ReportContent("Report for TrainedLogisticRegression", List(table)))
+    DOperableReporter("Trained Logistic Regression")
+      .withParameters(
+        description = "",
+        ("Regularization", ColumnType.numeric,
+          DoubleUtils.double2String(modelParameters.regularization)),
+        ("Iterations number", ColumnType.numeric,
+          DoubleUtils.double2String(modelParameters.iterationsNumber)),
+        ("Tolerance", ColumnType.numeric,
+          DoubleUtils.double2String(modelParameters.tolerance))
+      )
+      .withWeights(featureColumns, model.weights.toArray)
+      .withIntercept(model.intercept)
+      .withVectorScoring(this)
+      .report
   }
 
   override def save(context: ExecutionContext)(path: String): Unit = {
@@ -77,17 +79,6 @@ case class TrainedLogisticRegression(
       targetColumn)
     context.fsClient.saveObjectToFile(path, params)
     this.physicalPath = Some(path)
-  }
-}
-
-object TrainedLogisticRegression {
-  def loadFromFs(context: ExecutionContext)(path: String): TrainedLogisticRegression = {
-    val params: TrainedLogisticRegressionDescriptor =
-      context.fsClient.readFileAsObject[TrainedLogisticRegressionDescriptor](path)
-    TrainedLogisticRegression(
-      new LogisticRegressionModel(params.modelWeights, params.modelIntercept),
-      params.featureColumns,
-      params.targetColumn)
   }
 }
 

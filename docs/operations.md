@@ -35,6 +35,7 @@ List of all currently supported operations:
   * Regression
     * [Create Gradient Boosted Trees Regression](operations/create_gradient_boosted_trees_regression.html)
     * [Create Ridge Regression](operations/create_ridge_regression.html)
+    * [Create Lasso Regression](operations/create_lasso_regression.html)
     * [Create Random Forest Regression](operations/create_random_forest_regression.html)
     * [Train Regressor](operations/train_regressor.html)
     * [Score Regressor](operations/score_regressor.html)
@@ -43,6 +44,7 @@ List of all currently supported operations:
   * Classification
     * [Create Logistic Regression](operations/create_logistic_regression.html)
     * [Create Random Forest Classification](operations/create_random_forest_classification.html)
+    * [Create Support Vector Machine Classification](operations/create_support_vector_machine_classification.md)
     * [Train Classifier](operations/train_classifier.html)
     * [Score Classifier](operations/score_classifier.html)
     * [Cross-validate Classifier](operations/cross_validate_classifier.html)

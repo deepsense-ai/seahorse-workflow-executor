@@ -18,7 +18,7 @@ minimizing mean squared error:
 $$ \frac{1}{2}(w^Tx-y)^2 + \lambda\cdot\frac{1}{2}||w||^2_2 $$
 
 where $$ x $$
-is vector of features, $$ y $$ is label, $$ w $$ is vector of weights of model,is
+is vector of features, $$ y $$ is label, $$ w $$ is vector of weights of model
 and $$ \lambda $$ is regularization parameter.
 
 **Since**: Seahorse 0.4.0

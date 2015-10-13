@@ -18,12 +18,13 @@ package io.deepsense.deeplang.doperables.machinelearning.randomforest.classifica
 
 import org.apache.spark.mllib.tree.{RandomForest => SparkRandomForest}
 
+import io.deepsense.commons.types.ColumnType
 import io.deepsense.deeplang._
+import io.deepsense.deeplang.doperables.ColumnTypesPredicates.Predicate
+import io.deepsense.deeplang.doperables._
 import io.deepsense.deeplang.doperables.dataframe.DataFrame
 import io.deepsense.deeplang.doperables.machinelearning.randomforest.RandomForestParameters
-import io.deepsense.deeplang.doperables._
 import io.deepsense.deeplang.inference.{InferContext, InferenceWarnings}
-import io.deepsense.reportlib.model.ReportContent
 
 case class UntrainedRandomForestClassification(
     modelParameters: RandomForestParameters)
@@ -33,48 +34,50 @@ case class UntrainedRandomForestClassification(
 
   def this() = this(null)
 
-  override def toInferrable: DOperable = new UntrainedRandomForestClassification()
+  override protected def runTraining: RunTraining = runTrainingWithLabeledPoints
 
-  override val train = new DMethod1To1[Trainable.Parameters, DataFrame, Scorable] {
-    override def apply(context: ExecutionContext)(
-        parameters: Trainable.Parameters)(
-        dataFrame: DataFrame): Scorable = {
-
-      val (featureColumns, targetColumn) = parameters.columnNames(dataFrame)
-
-      val labeledPoints = dataFrame.selectAsSparkLabeledPointRDD(
-        targetColumn,
-        featureColumns,
-        labelPredicate = ColumnTypesPredicates.isNumericOrBinaryValued,
-        featurePredicate = ColumnTypesPredicates.isNumericOrCategorical)
-
-      labeledPoints.cache()
-
-      val trainedModel = SparkRandomForest.trainClassifier(
-        labeledPoints,
+  override protected def actualTraining: TrainScorable = (trainParameters) => {
+    val trainedModel =
+      SparkRandomForest.trainClassifier(
+        trainParameters.labeledPoints,
         2,
-        extractCategoricalFeatures(dataFrame, featureColumns),
+        extractCategoricalFeatures(trainParameters.dataFrame, trainParameters.features),
         modelParameters.numTrees,
         modelParameters.featureSubsetStrategy,
         modelParameters.impurity,
         modelParameters.maxDepth,
         modelParameters.maxBins)
 
-      val result = TrainedRandomForestClassification(trainedModel, featureColumns, targetColumn)
-
-      labeledPoints.unpersist()
-      result
-    }
-
-    override def infer(context: InferContext)(
-        parameters: Trainable.Parameters)(
-        dataframeKnowledge: DKnowledge[DataFrame]): (DKnowledge[Scorable], InferenceWarnings) = {
-      (DKnowledge(new TrainedRandomForestClassification()), InferenceWarnings.empty)
-    }
+    TrainedRandomForestClassification(
+      modelParameters, trainedModel, trainParameters.features, trainParameters.target)
   }
 
-  override def report(executionContext: ExecutionContext): Report =
-    Report(ReportContent("Report for UntrainedRandomForestClassification"))
+  override protected def actualInference(
+      context: InferContext)(
+      parameters: TrainableParameters)(
+      dataFrame: DKnowledge[DataFrame]): (DKnowledge[Scorable], InferenceWarnings) =
+    (DKnowledge(new TrainedRandomForestClassification()), InferenceWarnings.empty)
+
+  override def toInferrable: DOperable = new UntrainedRandomForestClassification()
+
+  override def report(executionContext: ExecutionContext): Report = {
+    DOperableReporter("Untrained Random Forest Classification")
+      .withParameters(
+        description = "",
+        ("Num trees", ColumnType.numeric, modelParameters.numTrees.toString),
+        ("Feature subset strategy", ColumnType.string, modelParameters.featureSubsetStrategy),
+        ("Impurity", ColumnType.string, modelParameters.impurity),
+        ("Max depth", ColumnType.numeric, modelParameters.maxDepth.toString),
+        ("Max bins", ColumnType.numeric, modelParameters.maxBins.toString)
+      )
+      .report
+  }
 
   override def save(context: ExecutionContext)(path: String): Unit = ???
+
+  override protected def labelPredicate: Predicate =
+    ColumnTypesPredicates.isNumericOrBinaryValued
+
+  override protected def featurePredicate: Predicate =
+    ColumnTypesPredicates.isNumericOrNonTrivialCategorical
 }

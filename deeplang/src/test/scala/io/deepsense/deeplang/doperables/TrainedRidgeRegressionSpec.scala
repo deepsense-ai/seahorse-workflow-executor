@@ -16,62 +16,27 @@
 
 package io.deepsense.deeplang.doperables
 
-import org.apache.spark.mllib.linalg
+import org.apache.spark.mllib.linalg.{Vector => LinAlgVector}
 import org.apache.spark.mllib.regression.RidgeRegressionModel
 
-import io.deepsense.commons.types.ColumnType
-import io.deepsense.deeplang.ExecutionContext
-import io.deepsense.deeplang.catalogs.doperable.DOperableCatalog
+import io.deepsense.deeplang.DOperable
+import io.deepsense.deeplang.doperables.machinelearning.LinearRegressionParameters
 import io.deepsense.deeplang.doperables.machinelearning.ridgeregression.TrainedRidgeRegression
-import io.deepsense.reportlib.model.{ReportContent, Table}
 
-class TrainedRidgeRegressionSpec extends ScorableSpec[TrainedRidgeRegression]{
-  def scorableName: String = "TrainedRidgeRegression"
+class TrainedRidgeRegressionSpec extends BaseTrainedLinearRegressionSpec {
 
-  def scorable: Scorable = new TrainedRidgeRegression()
+  override def scorableName: String = "TrainedRidgeRegression"
 
-  "TrainedRidgeRegression" should {
-    "generate report" in {
-      val executionContext = new ExecutionContext(mock[DOperableCatalog])
+  override def createRegression(
+      params: LinearRegressionParameters,
+      featureColumns: Seq[String],
+      targetColumn: String,
+      weights: LinAlgVector,
+      intercept: Double): DOperable = {
 
-      val weights = linalg.Vectors.dense(0.4, 10.3, -2.7)
-      val intercept = -3.14
-      val model = new RidgeRegressionModel(weights, intercept)
-      val featureColumns = Seq("abc", "def", "ghi")
-      val targetColumn = "xyz"
-
-      val regression = TrainedRidgeRegression(model, featureColumns, targetColumn, null)
-
-      regression.report(executionContext) shouldBe Report(ReportContent(
-        "Report for TrainedRidgeRegression",
-        tables = Map(
-          "Model weights" -> Table(
-            "Model weights", "",
-            Some(List("Column", "Weight")),
-            List(ColumnType.string, ColumnType.numeric),
-            None,
-            values = List(
-              List(Some(featureColumns(0)), Some(weights(0).toString)),
-              List(Some(featureColumns(1)), Some(weights(1).toString)),
-              List(Some(featureColumns(2)), Some(weights(2).toString))
-            )
-          ),
-          "Target column" -> Table(
-            "Target column", "",
-            None,
-            List(ColumnType.string),
-            None,
-            List(List(Some(targetColumn)))
-          ),
-          "Intercept" -> Table(
-            "Intercept", "",
-            None,
-            List(ColumnType.numeric),
-            None,
-            List(List(Some(intercept.toString)))
-          )
-        )
-      ))
-    }
+    val model = new RidgeRegressionModel(weights, intercept)
+    TrainedRidgeRegression(params, model, featureColumns, targetColumn, null)
   }
+
+  override def scorable: Scorable = new TrainedRidgeRegression()
 }

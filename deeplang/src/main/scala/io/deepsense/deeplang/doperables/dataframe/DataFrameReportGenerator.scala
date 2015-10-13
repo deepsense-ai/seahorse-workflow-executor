@@ -123,11 +123,12 @@ trait DataFrameReportGenerator {
         rdd.cache()
         distributionType(p._1, categoricalMetadata) match {
           case Continuous =>
+            val basicStatsForColumnOption = if (rdd.isEmpty()) { None } else { basicStats }
             Some(continuousDistribution(
               p._1,
               rdd,
-              basicStats.map(_.min(p._2)),
-              basicStats.map(_.max(p._2)),
+              basicStatsForColumnOption.map(_.min(p._2)),
+              basicStatsForColumnOption.map(_.max(p._2)),
               dataFrameSize,
               categoricalMetadata,
               executionContext.reportLevel))
@@ -220,7 +221,7 @@ trait DataFrameReportGenerator {
       categoricalMetadata: CategoricalMetadata): (Seq[String], Seq[Long]) = {
     val steps: Int = numberOfSteps(min, max, structField.dataType)
     val buckets: Array[Double] = customRange(min, max, steps)
-    (buckets2Labels(buckets.toList.take(buckets.length - 1), structField, categoricalMetadata),
+    (buckets2Labels(buckets.toList, structField, categoricalMetadata),
       rdd.histogram(buckets))
   }
 

@@ -21,7 +21,7 @@ import scala.util.{Failure, Success, Try}
 import org.apache.spark.sql.types.StructField
 
 import io.deepsense.commons.types.ColumnType
-import io.deepsense.deeplang.doperables.dataframe.types.{ColumnMetadata, SparkConversions}
+import io.deepsense.deeplang.doperables.dataframe.types.SparkConversions
 import io.deepsense.deeplang.doperables.dataframe.types.categorical.CategoricalColumnMetadataBuilder
 import io.deepsense.deeplang.doperations.exceptions.WrongColumnTypeException
 
@@ -36,10 +36,16 @@ object ColumnTypesPredicates {
         Failure(WrongColumnTypeException(field.name, columnType, ColumnType.numeric))
     }
 
-  def isNumericOrCategorical: Predicate = (field) =>
+  def isNumericOrNonTrivialCategorical: Predicate = (field) =>
     SparkConversions.sparkColumnTypeToColumnType(field.dataType) match {
       case ColumnType.numeric => Success()
-      case ColumnType.categorical => Success()
+      case ColumnType.categorical =>
+        val categoricalMetadata = CategoricalColumnMetadataBuilder.fromSparkMetadata(field.metadata)
+        categoricalMetadata.categories.values.size match {
+          case 0 | 1 => Failure(WrongColumnTypeException(
+            s"Column '${field.name}' is '${ColumnType.categorical}' with less than 2 levels."))
+          case _ => Success()
+        }
       case _ =>
         val columnType = SparkConversions.sparkColumnTypeToColumnType(field.dataType)
         Failure(WrongColumnTypeException(field.name, columnType,

@@ -77,6 +77,7 @@ case class CategoricalMapper(dataFrame: DataFrame, dataFrameBuilder: DataFrameBu
       .select(convertedColumn)
       .collect()
       .map(_.getString(0))
+      .filter(value => (value == null || !value.isEmpty))
   }
 
   private def findMappingFunction(column: String) = {
@@ -102,7 +103,7 @@ case class CategoricalMapper(dataFrame: DataFrame, dataFrameBuilder: DataFrameBu
               null
             } else {
               val convertedValue = Conversions.anyToString(value)
-              m.valueToId(convertedValue)
+              if (convertedValue.isEmpty) null else m.valueToId(convertedValue)
             }
           }.getOrElse(value)
       }

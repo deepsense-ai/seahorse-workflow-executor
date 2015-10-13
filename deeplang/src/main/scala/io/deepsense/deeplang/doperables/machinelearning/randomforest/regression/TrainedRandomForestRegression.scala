@@ -21,12 +21,13 @@ import org.apache.spark.mllib.tree.model.RandomForestModel
 import org.apache.spark.rdd.RDD
 
 import io.deepsense.commons.types.ColumnType
+import io.deepsense.deeplang.doperables.ColumnTypesPredicates._
 import io.deepsense.deeplang.doperables._
-import io.deepsense.deeplang.doperables.dataframe.DataFrame
+import io.deepsense.deeplang.doperables.machinelearning.randomforest.RandomForestParameters
 import io.deepsense.deeplang.{DOperable, ExecutionContext}
-import io.deepsense.reportlib.model.{ReportContent, Table}
 
 case class TrainedRandomForestRegression(
+    modelParameters: RandomForestParameters,
     model: RandomForestModel,
     featureColumns: Seq[String],
     targetColumn: String)
@@ -35,34 +36,31 @@ case class TrainedRandomForestRegression(
   with VectorScoring
   with DOperableSaver {
 
-  def this() = this(null, null, null)
+  def this() = this(null, null, null, null)
 
   override def toInferrable: DOperable = new TrainedRandomForestRegression()
 
   override def url: Option[String] = None
 
+  override protected def featurePredicate: Predicate =
+    ColumnTypesPredicates.isNumericOrNonTrivialCategorical
+
   override def transformFeatures(v: RDD[Vector]): RDD[Vector] = v
 
-  override def vectors(dataFrame: DataFrame): RDD[Vector] =
-    dataFrame.selectSparkVectorRDD(featureColumns, ColumnTypesPredicates.isNumericOrCategorical)
-
-  override def predict(vectors: RDD[Vector]): RDD[Double] = model.predict(vectors)
+  override def predict(features: RDD[Vector]): RDD[Double] = model.predict(features)
 
   override def report(executionContext: ExecutionContext): Report = {
-    val featureColumnsColumn = featureColumns.toList.map(Some.apply)
-    val targetColumnColumn = List(Some(targetColumn))
-    val rows = featureColumnsColumn.zipAll(targetColumnColumn, Some(""), Some(""))
-      .map{ case (a, b) => List(a, b) }
-
-    val table = Table(
-      "Trained Random Forest Regression",
-      model.toString,
-      Some(List("Feature columns", "Target column")),
-      List(ColumnType.string, ColumnType.string),
-      None,
-      rows)
-
-    Report(ReportContent("Report for TrainedRandomForestRegression", List(table)))
+    DOperableReporter("Trained Random Forest Regression")
+      .withParameters(
+        description = model.toString,
+        ("Num trees", ColumnType.numeric, modelParameters.numTrees.toString),
+        ("Feature subset strategy", ColumnType.string, modelParameters.featureSubsetStrategy),
+        ("Impurity", ColumnType.string, modelParameters.impurity),
+        ("Max depth", ColumnType.numeric, modelParameters.maxDepth.toString),
+        ("Max bins", ColumnType.numeric, modelParameters.maxBins.toString)
+      )
+      .withVectorScoring(this)
+      .report
   }
 
   override def save(context: ExecutionContext)(path: String): Unit = ???

@@ -1,6 +1,6 @@
 # Created by http://www.gitignore.io
 
-### Scala ###
+# Scala
 *.class
 *.log
 
@@ -33,3 +33,6 @@ private_*/
 
 # Jekyll
 docs/_site
+
+# Git
+*.orig

@@ -16,13 +16,13 @@
 
 package io.deepsense.deeplang.parameters
 
+import io.deepsense.deeplang.exceptions.DeepLangException
 import io.deepsense.deeplang.parameters.exceptions.ParameterRequiredException
 
 import spray.json.DefaultJsonProtocol._
 import spray.json._
 
 import io.deepsense.deeplang.parameters.ParameterType.ParameterType
-
 
 /**
  * Holds parameter value.
@@ -41,11 +41,13 @@ abstract class Parameter extends Serializable {
   /** Value of parameter. */
   protected var _value: Option[HeldValue]
 
-  def value: Option[HeldValue] = _value
+  def value: HeldValue = _value.get
 
-  def value_= (value: Option[HeldValue]): Unit = {
-    _value = value
-  }
+  def maybeValue: Option[HeldValue] = _value
+
+  def value_= (value: Option[HeldValue]): Unit = _value = value
+
+  def value_= (value: HeldValue): Unit = _value = Some(value)
 
   /**
    * Returns another parameter which has all fields equal to this parameter's fields
@@ -57,9 +59,9 @@ abstract class Parameter extends Serializable {
    * Validates held value.
    * If value is set to None exception is thrown.
    */
-  def validate(parameterName: String): Unit = value match {
+  def validate(parameterName: String): Vector[DeepLangException] = maybeValue match {
     case Some(definedValue) => validateDefined(definedValue)
-    case None => throw ParameterRequiredException(parameterName)
+    case None => Vector(ParameterRequiredException(parameterName))
   }
 
   /**
@@ -67,7 +69,9 @@ abstract class Parameter extends Serializable {
    * This validation is not performed if value is set to None.
    * This function does nothing by default.
    */
-  protected def validateDefined(definedValue: HeldValue): Unit = { }
+  protected def validateDefined(definedValue: HeldValue): Vector[DeepLangException] = {
+    Vector.empty
+  }
 
   /**
    * Map of fields that should be used in each parameter's Json representation.
@@ -84,7 +88,7 @@ abstract class Parameter extends Serializable {
    * Json representation of value held by this parameter.
    * If it is not provided, it returns JsNull.
    */
-  def valueToJson: JsValue = value match {
+  def valueToJson: JsValue = maybeValue match {
     case Some(definedValue) => definedValueToJson(definedValue)
     case None => JsNull
   }

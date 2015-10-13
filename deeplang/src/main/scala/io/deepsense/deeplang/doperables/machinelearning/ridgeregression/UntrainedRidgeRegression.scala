@@ -16,66 +16,49 @@
 
 package io.deepsense.deeplang.doperables.machinelearning.ridgeregression
 
-import org.apache.spark.mllib.feature.{StandardScaler, StandardScalerModel}
-import org.apache.spark.mllib.regression.{LabeledPoint, RidgeRegressionWithSGD}
+import org.apache.spark.mllib.regression.{RidgeRegressionModel, RidgeRegressionWithSGD}
 
 import io.deepsense.deeplang._
+import io.deepsense.deeplang.doperables.ColumnTypesPredicates.Predicate
+import io.deepsense.deeplang.doperables._
 import io.deepsense.deeplang.doperables.dataframe.DataFrame
+import io.deepsense.deeplang.doperables.machinelearning.{LinearRegressionParameters, UntrainedLinearRegression}
 import io.deepsense.deeplang.doperables.{ColumnTypesPredicates, Report, Scorable, Trainable}
 import io.deepsense.deeplang.inference.{InferContext, InferenceWarnings}
-import io.deepsense.reportlib.model.ReportContent
 
 case class UntrainedRidgeRegression(
-    createModel: () => RidgeRegressionWithSGD)
-  extends RidgeRegression with Trainable {
+    createModel: () => RidgeRegressionWithSGD, modelParameters: LinearRegressionParameters)
+  extends RidgeRegression
+  with Trainable
+  with UntrainedLinearRegression[TrainedRidgeRegression, RidgeRegressionModel] {
 
-  def this() = this(() => null)
+  def this() = this(() => null, null)
 
   override def toInferrable: DOperable = new UntrainedRidgeRegression()
 
-  override val train = new DMethod1To1[Trainable.Parameters, DataFrame, Scorable] {
-    override def apply(
-        context: ExecutionContext)(
-        parameters: Trainable.Parameters)(
-        dataframe: DataFrame): Scorable = {
+  override protected def runTraining: RunTraining = runTrainingWithUncachedLabeledPoints
 
-      val (featureColumns, targetColumn) = parameters.columnNames(dataframe)
+  override protected def actualTraining: TrainScorable =
+    (trainParameters: Trainable.TrainingParameters) =>
+      trainLinearRegression(
+        modelParameters,
+        trainParameters,
+        createModel)
 
-      val labeledPoints = dataframe.selectAsSparkLabeledPointRDD(
-        targetColumn,
-        featureColumns,
-        labelPredicate = ColumnTypesPredicates.isNumeric,
-        featurePredicate = ColumnTypesPredicates.isNumeric)
-
-      labeledPoints.cache()
-
-      val scaler: StandardScalerModel = new StandardScaler(withStd = true, withMean = true)
-        .fit(labeledPoints.map(_.features))
-      val scaledLabeledPoints = labeledPoints.map(lp => {
-        LabeledPoint(lp.label, scaler.transform(lp.features))
-      })
-      labeledPoints.unpersist()
-      scaledLabeledPoints.cache()
-
-      val trainedModel = createModel().run(scaledLabeledPoints)
-      val result = TrainedRidgeRegression(
-        trainedModel, featureColumns, targetColumn, scaler)
-      scaledLabeledPoints.unpersist()
-      saveScorable(context, result)
-      result
-    }
-
-    override def infer(
-        context: InferContext)(
-        parameters: Trainable.Parameters)(
-        dataframeKnowledge: DKnowledge[DataFrame]): (DKnowledge[Scorable], InferenceWarnings) = {
-      (DKnowledge(new TrainedRidgeRegression), InferenceWarnings.empty)
-    }
-  }
+  override protected def actualInference(
+      context: InferContext)(
+      parameters: TrainableParameters)(
+      dataFrame: DKnowledge[DataFrame]): (DKnowledge[Scorable], InferenceWarnings) =
+    (DKnowledge(new TrainedRidgeRegression), InferenceWarnings.empty)
 
   override def report(executionContext: ExecutionContext): Report =
-    Report(ReportContent("Report for UntrainedRidgeRegression"))
+    generateUntrainedRegressionReport(modelParameters)
 
   override def save(context: ExecutionContext)(path: String): Unit =
     throw new UnsupportedOperationException
+
+  override protected def featurePredicate: Predicate = ColumnTypesPredicates.isNumeric
+  override protected def labelPredicate: Predicate = ColumnTypesPredicates.isNumeric
+
+  override protected def trainedRegressionCreator = TrainedRidgeRegression.apply
 }

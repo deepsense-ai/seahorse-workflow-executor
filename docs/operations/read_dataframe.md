@@ -64,6 +64,7 @@ Timestamp columns are converted to string columns
 It is possible to select columns to be Categorical
 (by index, by name or by inferred type) using ``column selector``.
 When categorizing a non-string column all values will be cast to strings and trimmed first.
+Empty strings will be converted to null values.
 
 Vector column type is not supported in reading DataFrame from JSON file. Vector columns in JSON file
 will be treated as String columns.

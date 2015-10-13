@@ -32,7 +32,6 @@ import io.deepsense.deeplang.doperables.dataframe.types.categorical.{Categorical
 import io.deepsense.deeplang.doperables.{Report, ReportLevel}
 import io.deepsense.reportlib.model.{CategoricalDistribution, ContinuousDistribution, Statistics, Table}
 
-
 class DataFrameReportIntegSpec extends DeeplangIntegTestSupport with DataFrameTestFactory {
 
   override def beforeAll(): Unit = {
@@ -220,14 +219,14 @@ class DataFrameReportIntegSpec extends DeeplangIntegTestSupport with DataFrameTe
         report,
         DataFrameTestFactory.doubleColumnName,
         0L,
-        Seq("1.67"),
+        Seq("1.67", "1.67"),
         Seq(10),
         Statistics("1.67", "1.67", "1.67", "1.67", "1.67", "1.67", Seq()))
       testContinuousDistribution(
         report,
         DataFrameTestFactory.timestampColumnName,
         0L,
-        Seq("1970-01-20T00:43:00.000Z"),
+        Seq("1970-01-20T00:43:00.000Z", "1970-01-20T00:43:00.000Z"),
         Seq(10),
         Statistics(
           "1970-01-20T00:43:00.000Z",
@@ -252,8 +251,8 @@ class DataFrameReportIntegSpec extends DeeplangIntegTestSupport with DataFrameTe
           StructField("timestamp", TimestampType),
           StructField("boolean", BooleanType)))
         val emptyDataFrame = executionContext.dataFrameBuilder.buildDataFrame(
-            schema,
-            sparkContext.parallelize(Seq.empty[Row]))
+          schema,
+          sparkContext.parallelize(Seq.empty[Row]))
 
         val report = emptyDataFrame.report(executionContext)
 
@@ -270,6 +269,41 @@ class DataFrameReportIntegSpec extends DeeplangIntegTestSupport with DataFrameTe
         testContinuousDistribution(report, "timestamp", 0L, Seq.empty, Seq.empty, Statistics())
         testCategoricalDistribution(report, "boolean", 0L, Seq("false", "true"), Seq(0, 0))
       }
+      "DataFrame consists of null values only" in {
+        val categories = Seq("red", "blue", "green")
+        val mapping = CategoriesMapping(categories)
+        val metadata = CategoricalColumnMetadata(mapping).toSparkMetadata()
+        val schema = StructType(Seq(
+          StructField("string", StringType),
+          StructField("numeric", DoubleType),
+          StructField("categorical", IntegerType, metadata = metadata),
+          StructField("timestamp", TimestampType),
+          StructField("boolean", BooleanType)))
+        val emptyDataFrame = executionContext.dataFrameBuilder.buildDataFrame(
+          schema,
+          sparkContext.parallelize(Seq(
+            Row(null, null, null, null, null),
+            Row(null, null, null, null, null),
+            Row(null, null, null, null, null))))
+
+        val report = emptyDataFrame.report(executionContext)
+
+        val tables = report.content.tables
+        val dataSampleTable = tables.get(DataFrameReportGenerator.dataSampleTableName).get
+        dataSampleTable.columnNames shouldBe
+          Some(List("string", "numeric", "categorical", "timestamp", "boolean"))
+        dataSampleTable.rowNames shouldBe None
+        dataSampleTable.values shouldBe List(
+          List(None, None, None, None, None),
+          List(None, None, None, None, None),
+          List(None, None, None, None, None))
+        testDataFrameSizeTable(tables, 5, 3)
+        testEmptyDistribution(report, "string")
+        testContinuousDistribution(report, "numeric", 3L, Seq.empty, Seq.empty, Statistics())
+        testCategoricalDistribution(report, "categorical", 3L, categories, Seq(0, 0, 0))
+        testContinuousDistribution(report, "timestamp", 3L, Seq.empty, Seq.empty, Statistics())
+        testCategoricalDistribution(report, "boolean", 3L, Seq("false", "true"), Seq(0, 0))
+      }
     }
   }
 
@@ -280,7 +314,7 @@ class DataFrameReportIntegSpec extends DeeplangIntegTestSupport with DataFrameTe
 
   val doubleTypeBuckets: Array[String] = Array("1.307", "1.34825", "1.3895", "1.43075", "1.472",
     "1.51325", "1.5545", "1.59575", "1.637", "1.67825", "1.7195", "1.76075", "1.802", "1.84325",
-    "1.8845", "1.92575", "1.967", "2.00825", "2.0495", "2.09075")
+    "1.8845", "1.92575", "1.967", "2.00825", "2.0495", "2.09075", "2.132")
 
   val timestampTypeBuckets: Array[String] = Array("1954-12-18T00:43:00.000Z",
     "1957-09-18T11:28:51.000Z", "1960-06-19T22:14:42.000Z", "1963-03-22T09:00:33.000Z",
@@ -289,7 +323,7 @@ class DataFrameReportIntegSpec extends DeeplangIntegTestSupport with DataFrameTe
     "1982-06-28T12:21:30.000Z", "1985-03-29T23:07:21.000Z", "1987-12-30T09:53:12.000Z",
     "1990-09-30T20:39:03.000Z", "1993-07-02T07:24:54.000Z", "1996-04-02T18:10:45.000Z",
     "1999-01-03T04:56:36.000Z", "2001-10-04T15:42:27.000Z", "2004-07-06T02:28:18.000Z",
-    "2007-04-07T13:14:09.000Z")
+    "2007-04-07T13:14:09.000Z", "2010-01-07T00:00:00.000Z")
 
   private def testEmptyDistribution(
       report: Report,

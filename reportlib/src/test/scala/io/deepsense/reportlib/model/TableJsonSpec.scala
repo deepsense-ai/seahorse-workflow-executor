@@ -21,7 +21,6 @@ import spray.json._
 
 import io.deepsense.commons.types.ColumnType
 import io.deepsense.commons.types.ColumnType.ColumnType
-import io.deepsense.commons.types.ColumnType.ColumnType
 import io.deepsense.reportlib.model.factory.TableTestFactory
 
 class TableJsonSpec extends WordSpec with Matchers with TableTestFactory with ReportJsonProtocol {
@@ -43,7 +42,7 @@ class TableJsonSpec extends WordSpec with Matchers with TableTestFactory with Re
       "rowsNames, columnNames and columTypes specified" in {
         val json = testTableWithLabels(
           Some(columnNames), columnTypes, Some(rowNames), values).toJson
-        json shouldBe jsonTable(Some(columnNames), columnTypes , Some(rowNames), values)
+        json shouldBe jsonTable(Some(columnNames), columnTypes, Some(rowNames), values)
       }
       "is empty" in {
         val json = testEmptyTable.toJson
