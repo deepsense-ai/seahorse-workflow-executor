@@ -28,6 +28,7 @@ import io.deepsense.deeplang.{DOperable, ExecutionContext}
 
 case class TrainedRandomForestClassification(
     modelParameters: RandomForestParameters,
+    numberOfClasses: Int,
     model: RandomForestModel,
     featureColumns: Seq[String],
     targetColumn: String)
@@ -36,7 +37,7 @@ case class TrainedRandomForestClassification(
   with HasTargetColumn
   with DOperableSaver {
 
-  def this() = this(null, null, null, null)
+  def this() = this(null, Int.MinValue, null, null, null)
 
   override def toInferrable: DOperable = new TrainedRandomForestClassification()
 
@@ -56,7 +57,8 @@ case class TrainedRandomForestClassification(
         ("Feature subset strategy", ColumnType.string, modelParameters.featureSubsetStrategy),
         ("Impurity", ColumnType.string, modelParameters.impurity),
         ("Max depth", ColumnType.numeric, modelParameters.maxDepth.toString),
-        ("Max bins", ColumnType.numeric, modelParameters.maxBins.toString)
+        ("Max bins", ColumnType.numeric, modelParameters.maxBins.toString),
+        ("Num classes", ColumnType.numeric, numberOfClasses.toString)
       )
       .withSupervisedScorable(this)
       .report

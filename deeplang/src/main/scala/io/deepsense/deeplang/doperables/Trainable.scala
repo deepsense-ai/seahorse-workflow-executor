@@ -18,9 +18,14 @@ package io.deepsense.deeplang.doperables
 
 import org.apache.spark.mllib.regression.LabeledPoint
 import org.apache.spark.rdd.RDD
+import org.apache.spark.sql.types.Metadata
 
+import io.deepsense.commons.types.ColumnType
+import io.deepsense.commons.types.ColumnType.ColumnType
 import io.deepsense.deeplang.doperables.Trainable.TrainingParameters
 import io.deepsense.deeplang.doperables.dataframe.DataFrame
+import io.deepsense.deeplang.doperables.dataframe.types.categorical.MappingMetadataConverter
+import io.deepsense.deeplang.doperations.exceptions.WrongColumnTypeException
 import io.deepsense.deeplang.inference.{InferContext, InferenceWarnings}
 import io.deepsense.deeplang.{DKnowledge, DMethod1To1, DOperable, ExecutionContext}
 import io.deepsense.entitystorage.UniqueFilenameUtil
@@ -63,37 +68,81 @@ trait Trainable extends DOperable {
    * It un-caches them afterwards.
    */
   protected def runTrainingWithLabeledPoints: RunTraining =
-    (context, parameters, dataFrame) => {
-      (trainScorable: TrainScorable) => {
-        val (featureColumns, labelColumn) = parameters.columnNames(dataFrame)
-        val labeledPoints = selectLabeledPointRDD(dataFrame, labelColumn, featureColumns)
-
-        labeledPoints.cache()
-
-        val result =
-          trainScorable(TrainingParameters(dataFrame, labeledPoints, featureColumns, labelColumn))
-
-        labeledPoints.unpersist()
-
-        result
-      }
-    }
+    runTrainingWithLabeledPoints(caching = true, calculateNumClasses = false)
 
   /**
    * This version of runTraining provides the training code with NOT cached labeled points.
    */
   protected def runTrainingWithUncachedLabeledPoints: RunTraining =
+    runTrainingWithLabeledPoints(caching = false, calculateNumClasses = false)
+
+  /**
+   * This version of runTraining is designed for classification
+   * and provides the training code with cached labeled points.
+   * It un-caches them afterwards.
+   */
+  protected def runClassificationTrainingWithLabeledPoints: RunTraining =
+    runTrainingWithLabeledPoints(caching = true, calculateNumClasses = true)
+
+  /**
+   * This version of runTraining is designed for classification
+   * and provides the training code with NOT cached labeled points.
+   */
+  protected def runClassificationTrainingWithUncachedLabeledPoints: RunTraining =
+    runTrainingWithLabeledPoints(caching = false, calculateNumClasses = true)
+
+  private def runTrainingWithLabeledPoints(
+      caching: Boolean,
+      calculateNumClasses: Boolean): RunTraining =
     (context, parameters, dataFrame) => {
       (trainScorable: TrainScorable) => {
         val (featureColumns, labelColumn) = parameters.columnNames(dataFrame)
         val labeledPoints = selectLabeledPointRDD(dataFrame, labelColumn, featureColumns)
+        val numClasses =
+          if (calculateNumClasses) Some(calculateNumberOfClasses(dataFrame, labelColumn)) else None
+        val trainingParameters =
+          TrainingParameters(dataFrame, labeledPoints, featureColumns, labelColumn, numClasses)
+        def trainAction = () => trainScorable(trainingParameters)
 
-        val result =
-          trainScorable(TrainingParameters(dataFrame, labeledPoints, featureColumns, labelColumn))
-
-        result
+        if (caching) {
+          executeActionWithCaching[Scorable](labeledPoints, trainAction)
+        } else {
+          trainAction()
+        }
       }
     }
+
+  private def calculateNumberOfClasses(dataFrame: DataFrame, labelColumn: String): Int = {
+    val columnType: ColumnType = dataFrame.columnType(labelColumn)
+    val numClasses = columnType match {
+      case ColumnType.boolean => 2
+      case ColumnType.categorical =>
+        val columnMetadata: Metadata = dataFrame.sparkDataFrame.schema(labelColumn).metadata
+        val categoriesMapping = MappingMetadataConverter.mappingFromMetadata(columnMetadata)
+        categoriesMapping.get.numberOfMappings
+      case ColumnType.numeric =>
+        val rdd: RDD[Double] = dataFrame.selectDoubleRDD(
+          labelColumn,
+          ColumnTypesPredicates.isNumeric)
+        rdd.distinct().count().toInt
+      case _ => throw new WrongColumnTypeException(
+        s"Invalid label column type for classification: $columnType. Supported column types: " +
+        s"[${ColumnType.boolean}, ${ColumnType.categorical}, ${ColumnType.numeric}}]")
+    }
+    if (numClasses < 2) {
+      throw new WrongColumnTypeException(
+        s"Selected label column: '$labelColumn' has $numClasses unique values. " +
+        s"Column has to have >= 2 unique values to run classification.")
+    }
+    numClasses
+  }
+
+  private def executeActionWithCaching[T](rddToCache: RDD[LabeledPoint], action: () => T): T = {
+    rddToCache.cache()
+    val result = action()
+    rddToCache.unpersist()
+    result
+  }
 
   /**
    * This method should be overridden with the actual execution of training.
@@ -134,5 +183,6 @@ object Trainable {
     dataFrame: DataFrame,
     labeledPoints: RDD[LabeledPoint],
     features: Seq[String],
-    target: String)
+    target: String,
+    numberOfClasses: Option[Int] = None)
 }

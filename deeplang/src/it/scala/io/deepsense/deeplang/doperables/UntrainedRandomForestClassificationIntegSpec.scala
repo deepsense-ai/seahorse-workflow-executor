@@ -38,17 +38,43 @@ class UntrainedRandomForestClassificationIntegSpec
 
   override def acceptedTargetTypes: Seq[ExtendedColumnType] = Seq(
     ExtendedColumnType.binaryValuedNumeric,
+    ExtendedColumnType.nonBinaryValuedNumeric,
     ExtendedColumnType.boolean,
-    ExtendedColumnType.categorical1,
-    ExtendedColumnType.categorical2)
+    ExtendedColumnType.categorical2,
+    ExtendedColumnType.categoricalMany)
 
   override def unacceptableTargetTypes: Seq[ExtendedColumnType] = Seq(
-    // this is omitted because it's a runtime problem, not schema problem
-    //ExtendedColumnType.nonBinaryValuedNumeric
+    ExtendedColumnType.categorical1,
     ExtendedColumnType.string,
-    ExtendedColumnType.timestamp,
-    ExtendedColumnType.categoricalMany)
+    ExtendedColumnType.timestamp)
 
   override def createTrainableInstance: Trainable =
     UntrainedRandomForestClassification(RandomForestParameters(1, "auto", "entropy", 4, 100))
+
+
+  override def verifySupervisedScorable(
+    scorable: Scorable,
+    target: String,
+    targetColumnType: ExtendedColumnType,
+    features: Seq[String]): Unit = {
+
+    scorable.featureColumns shouldBe features
+    scorable.asInstanceOf[HasTargetColumn].targetColumn shouldBe target
+    verifyNumberOfClasses(
+      targetColumnType,
+      scorable.asInstanceOf[TrainedRandomForestClassification])
+  }
+
+  private def verifyNumberOfClasses(
+      extendedColumnType: ExtendedColumnType,
+      classification: TrainedRandomForestClassification): Unit = {
+    val expectedNumberOfClasses = extendedColumnType match {
+      case ExtendedColumnType.nonBinaryValuedNumeric => 3
+      case ExtendedColumnType.binaryValuedNumeric => 2
+      case ExtendedColumnType.boolean => 2
+      case ExtendedColumnType.categoricalMany => 3
+      case ExtendedColumnType.categorical2 => 2
+    }
+    classification.numberOfClasses shouldBe expectedNumberOfClasses
+  }
 }

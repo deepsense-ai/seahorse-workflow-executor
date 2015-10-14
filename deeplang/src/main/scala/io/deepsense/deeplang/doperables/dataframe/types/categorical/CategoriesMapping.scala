@@ -25,6 +25,7 @@ case class CategoriesMapping(valueToId: Map[String, Int], idToValue: Map[Int, St
   val values = valueIdPairs.map(_._1)
   val ids = valueIdPairs.map(_._2)
   val isEmpty: Boolean = valueToId.isEmpty
+  val numberOfMappings: Int = valueToId.size
 
   /**
    * Merge this mapping with some other mapping. Creates a mapping for a merged data set.
@@ -65,7 +66,7 @@ case class CategoriesMapping(valueToId: Map[String, Int], idToValue: Map[Int, St
 object CategoriesMapping {
   val empty = CategoriesMapping(Map.empty, Map.empty)
   def apply(values: Seq[String]): CategoriesMapping = {
-    require(values.forall(_ != null), "Mapping can not contain null")
+    require(!values.contains(null), "Mapping can not contain null")
     val zippedWithIndex = values.zipWithIndex
     val valueToId = zippedWithIndex.toMap
     val idToValue = zippedWithIndex.map(_.swap).toMap

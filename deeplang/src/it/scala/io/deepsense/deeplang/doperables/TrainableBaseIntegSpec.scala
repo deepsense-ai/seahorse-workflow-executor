@@ -112,7 +112,7 @@ abstract class TrainableBaseIntegSpec(val trainableName: String)
             mock[ExecutionContext])(trainableParameters)(dataFrame)
 
           verifySupervisedScorable(scorable,
-            targetName(binaryValuedNumeric), Seq(featureName(columnType)))
+            targetName(binaryValuedNumeric), binaryValuedNumeric, Seq(featureName(columnType)))
         }
       }
 
@@ -127,7 +127,7 @@ abstract class TrainableBaseIntegSpec(val trainableName: String)
             mock[ExecutionContext])(trainableParameters)(dataFrame)
 
           verifySupervisedScorable(scorable,
-            targetName(columnType), Seq(featureName(nonBinaryValuedNumeric)))
+            targetName(columnType), columnType, Seq(featureName(nonBinaryValuedNumeric)))
         }
       }
     }
@@ -145,6 +145,7 @@ abstract class TrainableBaseIntegSpec(val trainableName: String)
   def verifySupervisedScorable(
       scorable: Scorable,
       target: String,
+      targetColumnType: ExtendedColumnType,
       features: Seq[String]): Unit = {
 
     scorable.featureColumns shouldBe features

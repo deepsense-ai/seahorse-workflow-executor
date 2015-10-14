@@ -34,13 +34,13 @@ case class UntrainedRandomForestClassification(
 
   def this() = this(null)
 
-  override protected def runTraining: RunTraining = runTrainingWithLabeledPoints
+  override protected def runTraining: RunTraining = runClassificationTrainingWithLabeledPoints
 
   override protected def actualTraining: TrainScorable = (trainParameters) => {
     val trainedModel =
       SparkRandomForest.trainClassifier(
         trainParameters.labeledPoints,
-        2,
+        trainParameters.numberOfClasses.get,
         extractCategoricalFeatures(trainParameters.dataFrame, trainParameters.features),
         modelParameters.numTrees,
         modelParameters.featureSubsetStrategy,
@@ -49,7 +49,11 @@ case class UntrainedRandomForestClassification(
         modelParameters.maxBins)
 
     TrainedRandomForestClassification(
-      modelParameters, trainedModel, trainParameters.features, trainParameters.target)
+      modelParameters,
+      trainParameters.numberOfClasses.get,
+      trainedModel,
+      trainParameters.features,
+      trainParameters.target)
   }
 
   override protected def actualInference(
@@ -76,7 +80,7 @@ case class UntrainedRandomForestClassification(
   override def save(context: ExecutionContext)(path: String): Unit = ???
 
   override protected def labelPredicate: Predicate =
-    ColumnTypesPredicates.isNumericOrBinaryValued
+    ColumnTypesPredicates.isNumericBooleanCategorical
 
   override protected def featurePredicate: Predicate =
     ColumnTypesPredicates.isNumericOrNonTrivialCategorical

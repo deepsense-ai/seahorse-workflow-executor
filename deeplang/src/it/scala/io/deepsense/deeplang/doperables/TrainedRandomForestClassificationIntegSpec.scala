@@ -64,6 +64,7 @@ class TrainedRandomForestClassificationIntegSpec
 
     TrainedRandomForestClassification(
       RandomForestParameters(1, "auto", "gini", 1, 1),
+      2,
       model,
       features,
       predictionColumnName)
@@ -72,6 +73,7 @@ class TrainedRandomForestClassificationIntegSpec
   override def createScorableInstanceWithModel(trainedModelMock: PredictorSparkModel): Scorable =
     TrainedRandomForestClassification(
       RandomForestParameters(1, "auto", "gini", 1, 1),
+      2,
       trainedModelMock.asInstanceOf[RandomForestModel],
       mock[Seq[String]],
       predictionColumnName)

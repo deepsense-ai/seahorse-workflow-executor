@@ -72,4 +72,19 @@ object ColumnTypesPredicates {
             s"Expected '${ColumnType.boolean}', '${ColumnType.numeric}' " +
             s"or '${ColumnType.categorical}' with 2 levels."))
     }
+
+  def isNumericBooleanCategorical: Predicate = (field) =>
+    SparkConversions.sparkColumnTypeToColumnType(field.dataType) match {
+      case ColumnType.boolean => Success()
+      case ColumnType.numeric => Success()
+      case ColumnType.categorical => Success()
+      case _ =>
+        val columnType = SparkConversions.sparkColumnTypeToColumnType(field.dataType)
+        Failure(WrongColumnTypeException(
+          s"Column '${field.name}' is of type '$columnType', " +
+            s"which is unsupported in this operation. " +
+            s"Expected '${ColumnType.boolean}', '${ColumnType.numeric}' " +
+            s"or '${ColumnType.categorical}'."))
+    }
+  // TODO: Address code duplication in this file.
 }

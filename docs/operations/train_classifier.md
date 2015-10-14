@@ -3,6 +3,7 @@ layout: documentation
 displayTitle: Train Classifier
 title: Train Classifier
 description: Train Classifier
+usesMathJax: true
 includeOperationsMenu: true
 ---
 
@@ -100,10 +101,11 @@ returning a trained model than can be [scored](../traits/scorable.html).
       <td><code>target column</code></td>
       <td><code><a href="../parameters.html#single_column_selector">SingleColumnSelector</a></code></td>
       <td>A column containing a target of the training (predicted label).
-        All values in this column have to be either 0 or 1.
-        If selected column's type is different than <code>Numeric</code>,
-        <code>WrongColumnTypeException</code> will be thrown.
-        If selected column does not exist, <code>ColumnDoesNotExistException</code> will be thrown
+        The target column has to have <code>Numeric</code>, <code>Categorical</code> or <code>Boolean</code> type.
+        If selected column's type is different then <code>WrongColumnTypeException</code> will be thrown.
+        Number of unique values in the target column defines number of classes used for classification: <code>numClasses</code>.
+        In case of <code>Numeric</code> type all values in this column have to be in <code>[0..numClasses - 1]</code>.
+        If selected column does not exist, <code>ColumnDoesNotExistException</code> will be thrown.
       </td>
     </tr>
   </tbody>

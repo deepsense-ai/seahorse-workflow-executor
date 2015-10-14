@@ -35,7 +35,7 @@ trait PrebuiltTypedColumns {
   protected def buildColumns(
       makeName: ExtendedColumnType => String): Map[ExtendedColumnType, TypedColumn] = Map(
     nonBinaryValuedNumeric -> TypedColumn(
-      Seq(1.8, 2.2, 3.3),
+      Seq(0.0, 1.0, 2.0),
       StructField(makeName(nonBinaryValuedNumeric), DoubleType)),
     binaryValuedNumeric -> TypedColumn(
       Seq(1.0, 0.0, 1.0),

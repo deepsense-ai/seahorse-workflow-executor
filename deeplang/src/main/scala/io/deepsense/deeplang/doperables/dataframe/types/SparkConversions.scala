@@ -31,7 +31,7 @@ object SparkConversions {
   )
 
   private val columnTypeToSparkColumnTypeMap: Map[sql.types.DataType, ColumnType] =
-    sparkColumnTypeToColumnTypeMap.map(_.swap).toMap
+    sparkColumnTypeToColumnTypeMap.map(_.swap)
 
   def columnTypeToSparkColumnType(columnType: ColumnType): sql.types.DataType =
     sparkColumnTypeToColumnTypeMap(columnType)
