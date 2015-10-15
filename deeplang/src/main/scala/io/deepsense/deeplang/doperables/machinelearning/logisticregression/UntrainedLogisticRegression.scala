@@ -27,21 +27,34 @@ import io.deepsense.deeplang.doperables._
 import io.deepsense.deeplang.inference.{InferContext, InferenceWarnings}
 
 case class UntrainedLogisticRegression(
-    modelParameters: LogisticRegressionParameters,
-    createModel: () => LogisticRegressionWithLBFGS)
+    modelParameters: LogisticRegressionParameters)
   extends LogisticRegression
   with Trainable {
 
-  def this() = this(null, () => null)
+  def this() = this(null)
 
-  override protected def runTraining: RunTraining = runTrainingWithLabeledPoints
+  override protected def runTraining: RunTraining = runClassificationTrainingWithLabeledPoints
 
   override protected def actualTraining: TrainScorable = (trainParameters) => {
-    val trainedModel: LogisticRegressionModel =
-      createModel().run(trainParameters.labeledPoints)
+
+    val model = new LogisticRegressionWithLBFGS
+    model
+      .setIntercept(true)
+      .setNumClasses(trainParameters.numberOfClasses.get)
+      .setValidateData(false)
+      .optimizer
+      .setRegParam(modelParameters.regularization)
+      .setNumIterations(modelParameters.iterationsNumber)
+      .setConvergenceTol(modelParameters.tolerance)
+
+    val trainedModel = model.run(trainParameters.labeledPoints)
 
     TrainedLogisticRegression(
-      modelParameters, trainedModel, trainParameters.features, trainParameters.target)
+      modelParameters,
+      trainParameters.numberOfClasses.get,
+      trainedModel,
+      trainParameters.features,
+      trainParameters.target)
   }
 
   override protected def actualInference(
@@ -69,6 +82,8 @@ case class UntrainedLogisticRegression(
   override def save(context: ExecutionContext)(path: String): Unit =
     throw new UnsupportedOperationException
 
-  override protected def labelPredicate: Predicate = ColumnTypesPredicates.isNumericOrBinaryValued
-  override protected def featurePredicate: Predicate = ColumnTypesPredicates.isNumeric
+  override protected def labelPredicate: Predicate =
+    ColumnTypesPredicates.isNumericBooleanCategorical
+  override protected def featurePredicate: Predicate =
+    ColumnTypesPredicates.isNumeric
 }

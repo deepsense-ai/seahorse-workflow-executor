@@ -16,25 +16,12 @@
 
 package io.deepsense.deeplang.doperables
 
-import org.apache.spark.mllib.classification.{LogisticRegressionModel, LogisticRegressionWithLBFGS}
-import org.apache.spark.mllib.regression.GeneralizedLinearAlgorithm
-
 import io.deepsense.deeplang.PrebuiltTypedColumns.ExtendedColumnType
 import io.deepsense.deeplang.PrebuiltTypedColumns.ExtendedColumnType.ExtendedColumnType
-import io.deepsense.deeplang.doperables.machinelearning.logisticregression.{LogisticRegressionParameters, TrainedLogisticRegression, UntrainedLogisticRegression}
+import io.deepsense.deeplang.doperables.machinelearning.logisticregression.{LogisticRegressionParameters, UntrainedLogisticRegression}
 
 class UntrainedLogisticRegressionIntegSpec
-  extends TrainableBaseIntegSpec("UntrainedLogisticRegression")
-  with GeneralizedLinearModelTrainableBaseIntegSpec[LogisticRegressionModel] {
-
-  override def createTrainableInstanceWithModel(
-      untrainedModelMock: GeneralizedLinearAlgorithm[LogisticRegressionModel]): Trainable =
-    UntrainedLogisticRegression(
-      mock[LogisticRegressionParameters],
-      () => untrainedModelMock.asInstanceOf[LogisticRegressionWithLBFGS])
-
-  override def mockUntrainedModel(): GeneralizedLinearAlgorithm[LogisticRegressionModel] =
-    mock[LogisticRegressionWithLBFGS]
+  extends TrainableBaseIntegSpec("UntrainedLogisticRegression") {
 
  override def acceptedFeatureTypes: Seq[ExtendedColumnType] = Seq(
     ExtendedColumnType.binaryValuedNumeric,
@@ -50,20 +37,16 @@ class UntrainedLogisticRegressionIntegSpec
 
   override def acceptedTargetTypes: Seq[ExtendedColumnType] = Seq(
     ExtendedColumnType.binaryValuedNumeric,
+    ExtendedColumnType.nonBinaryValuedNumeric,
     ExtendedColumnType.boolean,
-    ExtendedColumnType.categorical1,
-    ExtendedColumnType.categorical2)
-
-  override def unacceptableTargetTypes: Seq[ExtendedColumnType] = Seq(
-    // this is omitted because it's a runtime problem, not schema problem
-    //ExtendedColumnType.nonBinaryValuedNumeric
-    ExtendedColumnType.string,
-    ExtendedColumnType.timestamp,
+    ExtendedColumnType.categorical2,
     ExtendedColumnType.categoricalMany)
 
-  override def createTrainableInstance: Trainable = {
-    val model = new LogisticRegressionWithLBFGS()
-    model.optimizer.setNumIterations(1)
-    UntrainedLogisticRegression(LogisticRegressionParameters(1, 1, 1), () => model)
-  }
+  override def unacceptableTargetTypes: Seq[ExtendedColumnType] = Seq(
+    ExtendedColumnType.string,
+    ExtendedColumnType.timestamp,
+    ExtendedColumnType.categorical1)
+
+  override def createTrainableInstance: Trainable =
+    UntrainedLogisticRegression(LogisticRegressionParameters(1, 1, 1))
 }

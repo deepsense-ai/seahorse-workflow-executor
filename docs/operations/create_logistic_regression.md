@@ -20,6 +20,12 @@ $$ log(1 + e^{-yw^Tx}) + \lambda\cdot\frac{1}{2}||w||^2_2 $$
 where $$ x $$ is a vector of features, $$ y $$ is a label (-1 or 1),
 $$ w $$ is the vector of weights of the model and $$ \lambda $$ is regularization parameter.
 
+The number of decision classes $$ K $$ is discovered from training data.
+
+For multiclass classification ($$ K > 2 $$), one of the classes is chosen as a "pivot" and $$ K - 1 $$ binary regression models are
+created for the remaining classes. Given new data points, $$ K - 1 $$ models will be run against the
+"pivot" class, and the best matching class will be chosen as the prediction. For more details, read:
+<a target="_blank" href="https://en.wikipedia.org/wiki/Multinomial_logistic_regression">https://en.wikipedia.org/wiki/Multinomial_logistic_regression</a>
 
 **Since**: Seahorse 0.4.0
 

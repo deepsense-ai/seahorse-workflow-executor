@@ -30,6 +30,7 @@ import io.deepsense.deeplang.{DOperable, ExecutionContext, Model}
 
 case class TrainedLogisticRegression(
     modelParameters: LogisticRegressionParameters,
+    numberOfClasses: Int,
     model: LogisticRegressionModel,
     featureColumns: Seq[String],
     targetColumn: String)
@@ -37,7 +38,7 @@ case class TrainedLogisticRegression(
   with Scorable
   with HasTargetColumn {
 
-  def this() = this(null, null, null, null)
+  def this() = this(null, Int.MinValue, null, null, null)
 
   override def toInferrable: DOperable = new TrainedLogisticRegression()
 
@@ -63,7 +64,8 @@ case class TrainedLogisticRegression(
         ("Iterations number", ColumnType.numeric,
           DoubleUtils.double2String(modelParameters.iterationsNumber)),
         ("Tolerance", ColumnType.numeric,
-          DoubleUtils.double2String(modelParameters.tolerance))
+          DoubleUtils.double2String(modelParameters.tolerance)),
+        ("Number of classes", ColumnType.numeric, numberOfClasses.toString)
       )
       .withWeights(featureColumns, model.weights.toArray)
       .withIntercept(model.intercept)

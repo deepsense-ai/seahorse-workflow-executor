@@ -54,6 +54,7 @@ class TrainedLogisticRegressionIntegSpec
 
     TrainedLogisticRegression(
       LogisticRegressionParameters(1, 1, 1),
+      2,
       model,
       mock[Seq[String]],
       predictionColumnName)
@@ -62,6 +63,7 @@ class TrainedLogisticRegressionIntegSpec
   override def createScorableInstance(features: String*): Scorable = {
     TrainedLogisticRegression(
       LogisticRegressionParameters(1, 1, 1),
+      2,
       new LogisticRegressionModel(Vectors.dense(1), 1),
       features,
       predictionColumnName)

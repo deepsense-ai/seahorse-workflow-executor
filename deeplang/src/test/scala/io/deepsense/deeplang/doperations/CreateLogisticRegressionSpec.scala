@@ -26,8 +26,7 @@ class CreateLogisticRegressionSpec extends UnitSpec {
       val createLogisticRegression = CreateLogisticRegression(0, 1, 0.0001)
       val context = mock[ExecutionContext]
       val resultVector = createLogisticRegression.execute(context)(Vector.empty)
-      val result = resultVector.head.asInstanceOf[UntrainedLogisticRegression]
-      result.createModel() shouldBe an [LogisticRegressionWithLBFGS]
+      resultVector.head.isInstanceOf[UntrainedLogisticRegression] shouldBe true
     }
   }
 }

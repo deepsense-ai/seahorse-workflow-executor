@@ -17,4 +17,4 @@
 package io.deepsense.deeplang.doperables.machinelearning.logisticregression
 
 case class LogisticRegressionParameters(
-    regularization: Double, iterationsNumber: Double, tolerance: Double)
+    regularization: Double, iterationsNumber: Int, tolerance: Double)
