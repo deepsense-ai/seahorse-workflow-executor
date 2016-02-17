@@ -269,5 +269,8 @@ object CatalogRecorder {
 
     catalog.registerDOperation[CreateRegressionEvaluator](
       DOperationCategories.ML.ModelEvaluation)
+
+    catalog.registerDOperation[DeployTransformer](
+      DOperationCategories.IO)
   }
 }
