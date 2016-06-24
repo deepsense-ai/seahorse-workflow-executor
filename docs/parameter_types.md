@@ -114,7 +114,7 @@ Like in a `single choice selector`, each option can have internal parameters tha
 ### Code Snippet
 Holds code snippet string value. Different languages (language is chosen by operation creator) can be used for syntax validation and syntax highlighting.
 
-**Example of use:** code snippet parameter for Python language in [Custom Python Operation](operations/custom_python_operation.html).
+**Example of use:** code snippet parameter for Python language in [Python Transformation](operations/python_transformation.html).
 
 **Example value:**
 
