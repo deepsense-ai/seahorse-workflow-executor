@@ -23,6 +23,7 @@ import org.apache.spark.mllib.linalg.{VectorUDT, Vectors}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.types._
+
 import io.deepsense.commons.datetime.DateTimeConverter.dateTimeFromUTC
 
 trait DataFrameTestFactory {

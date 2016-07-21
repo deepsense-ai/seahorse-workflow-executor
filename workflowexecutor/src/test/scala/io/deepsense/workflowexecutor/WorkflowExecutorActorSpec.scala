@@ -16,6 +16,7 @@
 
 package io.deepsense.workflowexecutor
 
+import scala.concurrent.duration._
 import akka.actor.{Actor, ActorRef, ActorSystem}
 import akka.testkit.{TestActorRef, TestKit, TestProbe}
 import org.mockito.Matchers._
@@ -26,16 +27,14 @@ import org.scalatest._
 import org.scalatest.concurrent.{Eventually, ScalaFutures, ScaledTimeSpans}
 import org.scalatest.mock.MockitoSugar
 import spray.json.JsObject
-
 import io.deepsense.commons.datetime.DateTimeConverter
-import io.deepsense.commons.exception.{DeepSenseFailure, FailureCode, FailureDescription}
 import io.deepsense.commons.models.Entity
 import io.deepsense.commons.utils.Logging
 import io.deepsense.deeplang.doperables.dataframe.DataFrame
 import io.deepsense.deeplang.doperations.inout._
 import io.deepsense.deeplang.doperations.{ReadDataFrame, WriteDataFrame}
 import io.deepsense.deeplang.inference.InferContext
-import io.deepsense.deeplang.{CommonExecutionContext, DOperable, DOperation, ExecutionContext}
+import io.deepsense.deeplang.{CommonExecutionContext, DOperable, ExecutionContext}
 import io.deepsense.graph.DeeplangGraph.DeeplangNode
 import io.deepsense.graph.Node.Id
 import io.deepsense.graph._
@@ -45,8 +44,7 @@ import io.deepsense.reportlib.model.ReportContent
 import io.deepsense.reportlib.model.factory.ReportContentTestFactory
 import io.deepsense.workflowexecutor.WorkflowExecutorActor.Messages._
 import io.deepsense.workflowexecutor.WorkflowManagerClientActorProtocol.{GetWorkflow, SaveState, SaveWorkflow}
-import io.deepsense.workflowexecutor.WorkflowNodeExecutorActor.Messages.Start
-import io.deepsense.workflowexecutor.communication.message.workflow.ExecutionStatus
+import io.deepsense.workflowexecutor.WorkflowNodeExecutorActor.Messages.Delete
 import io.deepsense.workflowexecutor.executor.Executor
 import io.deepsense.workflowexecutor.partialexecution._
 
@@ -72,13 +70,6 @@ class WorkflowExecutorActorSpec
 
           eventually {
             statusListeners.foreach { receiver =>
-              val results = receiver.expectMsgClass(classOf[WorkflowWithResults])
-              results.executionReport shouldBe workflow.executionReport
-              results.graph shouldBe workflow.graph
-              results.id shouldBe workflow.id
-              results.metadata shouldBe workflow.metadata
-              results.thirdPartyData shouldBe workflow.thirdPartyData
-
               val inferredState = receiver.expectMsgClass(classOf[InferredState])
               inferredState.id shouldBe workflow.id
               inferredState.states shouldBe workflow.executionReport.statesOnly
@@ -97,10 +88,10 @@ class WorkflowExecutorActorSpec
 
         eventually {
           statusListeners.foreach { receiver =>
-            val status = receiver.expectMsgClass(classOf[ExecutionStatus])
-            status.executionReport.error shouldBe None
-            status.executionReport.nodesStatuses shouldBe abortedStatuses
-            status.executionReport.resultEntities shouldBe EntitiesMap()
+            val status = receiver.expectMsgClass(classOf[ExecutionReport])
+            status.error shouldBe None
+            status.nodesStatuses shouldBe abortedStatuses
+            status.resultEntities shouldBe EntitiesMap()
 
             val execution = wea.underlyingActor.execution
             execution match {
@@ -130,11 +121,11 @@ class WorkflowExecutorActorSpec
 
         eventually {
           statusListeners.foreach { receiver =>
-            val status = receiver.expectMsgClass(classOf[ExecutionStatus])
-            status.executionReport.error shouldBe None
-            status.executionReport.nodesStatuses.size shouldBe 2
-            status.executionReport.nodesStatuses(node2.id) shouldBe a[Queued]
-            status.executionReport.nodesStatuses(node1.id) shouldBe a[Running]
+            val status = receiver.expectMsgClass(classOf[ExecutionReport])
+            status.error shouldBe None
+            status.nodesStatuses.size shouldBe 2
+            status.nodesStatuses(node2.id) shouldBe a[Queued]
+            status.nodesStatuses(node1.id) shouldBe a[Running]
           }
         }
         eventually {
@@ -154,7 +145,7 @@ class WorkflowExecutorActorSpec
         sendLaunch(probe, wea, workflow.graph.nodes.map(_.id))
 
         verifyStatus(statusListeners) { executionStatus =>
-          executionStatus.executionReport.error.isDefined shouldBe true
+          executionStatus.error.isDefined shouldBe true
         }
         eventually {
           val saveState = testWMClientProbe.expectMsgClass(classOf[SaveState])
@@ -171,10 +162,10 @@ class WorkflowExecutorActorSpec
 
         eventually {
           statusListeners.foreach { receiver =>
-            val executionStatus = receiver.expectMsgType[ExecutionStatus]
+            val executionStatus = receiver.expectMsgType[ExecutionReport]
             logger.info("status: " + executionStatus)
-            executionStatus.executionReport.nodesStatuses.size shouldBe 1
-            executionStatus.executionReport.nodesStatuses(node2.id) shouldBe a[nodestate.Running]
+            executionStatus.nodesStatuses.size shouldBe 1
+            executionStatus.nodesStatuses(node2.id) shouldBe a[nodestate.Running]
           }
           wea.underlyingActor.execution.graph.states(node1.id).nodeState.nodeStatus shouldBe
             a[nodestate.Completed]
@@ -210,7 +201,7 @@ class WorkflowExecutorActorSpec
 
         eventually {
           statusListeners.foreach { receiver =>
-            receiver.expectMsgClass(classOf[ExecutionStatus])
+            receiver.expectMsgClass(classOf[ExecutionReport])
           }
           verify(statefulWorkflow).nodeFinished(
             completedId,
@@ -286,7 +277,7 @@ class WorkflowExecutorActorSpec
 
         eventually {
           statusListeners.foreach { receiver =>
-            receiver.expectMsgClass(classOf[ExecutionStatus])
+            receiver.expectMsgClass(classOf[ExecutionReport])
           }
           verify(statefulWorkflow).nodeFailed(completedId, cause)
         }
@@ -299,16 +290,83 @@ class WorkflowExecutorActorSpec
     "receive StructUpdate" should {
       "update state, send update to WM and to editor" in {
         val statefulWorkflow: StatefulWorkflow = mock[StatefulWorkflow]
+
         val wmClient = TestProbe()
         val publisher = TestProbe()
         val probe = TestProbe()
+
+        val wnea = TestProbe()
+        val nodeExecutorFactory = mock[GraphNodeExecutorFactory]
+        when(nodeExecutorFactory.createGraphNodeExecutor(any(), any(), any(), any()))
+          .thenReturn(wnea.ref)
+
         val wea: TestActorRef[WorkflowExecutorActor] = TestActorRef(
-          SessionWorkflowExecutorActor.props(
+          new SessionWorkflowExecutorActor(
             mock[CommonExecutionContext],
+            nodeExecutorFactory,
             wmClient.ref,
-            system.actorSelection(publisher.ref.path),
+            publisher.ref,
             TestProbe().ref,
-            3), Workflow.Id.randomId.toString)
+            TestProbe().ref,
+            3, "", 3.seconds), Workflow.Id.randomId.toString)
+
+        wea.underlyingActor.statefulWorkflow = statefulWorkflow
+        wea.underlyingActor.context.become(wea.underlyingActor.ready())
+
+        val workflow: Workflow = mock[Workflow]
+        val workflowWithResults: WorkflowWithResults = mock[WorkflowWithResults]
+        val inferredState = mock[InferredState]
+        when(statefulWorkflow.workflowWithResults).thenReturn(workflowWithResults)
+        when(statefulWorkflow.inferState).thenReturn(inferredState)
+        when(statefulWorkflow.getNodesRemovedByWorkflow(workflow)).thenReturn(Set[DeeplangNode]())
+
+        probe.send(wea, UpdateStruct(workflow))
+
+        eventually {
+          verify(statefulWorkflow).updateStructure(workflow)
+          verify(statefulWorkflow).workflowWithResults
+          verify(nodeExecutorFactory, never()).createGraphNodeExecutor(any(), any(), any(), any())
+          val saveWorkflow = wmClient.expectMsgClass(classOf[SaveWorkflow])
+          saveWorkflow shouldBe SaveWorkflow(workflowWithResults)
+
+          val inferred = publisher.expectMsgClass(classOf[InferredState])
+          inferred shouldBe inferredState
+        }
+      }
+    }
+
+    "call updateStructure with nodes deleted" should {
+      "send delete to WorkflowNodeExecutorActor" in {
+        val statefulWorkflow: StatefulWorkflow = mock[StatefulWorkflow]
+
+        val removedNodes = Set(node1, node2)
+        val wmClient = TestProbe()
+        val publisher = TestProbe()
+        val probe = TestProbe()
+
+        val nodeExecutors = Seq.fill(2)(TestProbe())
+        val nodeExecutorFactory = mock[GraphNodeExecutorFactory]
+        when(nodeExecutorFactory.createGraphNodeExecutor(any(), any(), any(), any()))
+          .thenAnswer(new Answer[ActorRef] {
+            var i = 0
+            override def answer(invocation: InvocationOnMock): ActorRef = {
+              val executor = nodeExecutors(i)
+              i = i + 1
+              executor.ref
+            }
+          })
+
+        val wea: TestActorRef[WorkflowExecutorActor] = TestActorRef(
+          new SessionWorkflowExecutorActor(
+            mock[CommonExecutionContext],
+            nodeExecutorFactory,
+            wmClient.ref,
+            publisher.ref,
+            TestProbe().ref,
+            TestProbe().ref,
+            3, "", 3.seconds), Workflow.Id.randomId.toString)
+
+
         wea.underlyingActor.statefulWorkflow = statefulWorkflow
         wea.underlyingActor.context.become(wea.underlyingActor.ready())
         val workflow: Workflow = mock[Workflow]
@@ -316,18 +374,12 @@ class WorkflowExecutorActorSpec
         val inferredState = mock[InferredState]
         when(statefulWorkflow.workflowWithResults).thenReturn(workflowWithResults)
         when(statefulWorkflow.inferState).thenReturn(inferredState)
+        doReturn(removedNodes).when(statefulWorkflow).getNodesRemovedByWorkflow(workflow)
 
         probe.send(wea, UpdateStruct(workflow))
 
         eventually {
-          verify(statefulWorkflow).updateStructure(workflow)
-          verify(statefulWorkflow).workflowWithResults
-
-          val saveWorkflow = wmClient.expectMsgClass(classOf[SaveWorkflow])
-          saveWorkflow shouldBe SaveWorkflow(workflowWithResults)
-
-          val inferred = publisher.expectMsgClass(classOf[InferredState])
-          inferred shouldBe inferredState
+          nodeExecutors.foreach(ne => ne.expectMsgClass(classOf[Delete]))
         }
       }
     }
@@ -344,10 +396,10 @@ class WorkflowExecutorActorSpec
     probe.send(wea, Launch(nodes))
   }
 
-  private def verifyStatus(receivers: Seq[TestProbe])(f: (ExecutionStatus) => Unit): Unit = {
+  private def verifyStatus(receivers: Seq[TestProbe])(f: (ExecutionReport) => Unit): Unit = {
     eventually {
       receivers.foreach { receiver =>
-        f(receiver.expectMsgClass(classOf[ExecutionStatus]))
+        f(receiver.expectMsgClass(classOf[ExecutionReport]))
       }
     }
   }
@@ -371,6 +423,7 @@ class WorkflowExecutorActorSpec
       wea.underlyingActor.executionContext,
       workflow.id,
       workflow.metadata,
+      WorkflowInfo.forId(workflow.id),
       workflow.thirdPartyData,
       Execution(StatefulGraph(
         workflow.graph,
@@ -447,9 +500,12 @@ class WorkflowExecutorActorSpec
         commonExecutionContext,
         nodeExecutorFactory,
         wmClient,
-        system.actorSelection(publisher.ref.path),
+        publisher.ref,
         TestProbe().ref,
-        5), workflow.id.toString)
+        TestProbe().ref,
+        5,
+        "",
+        3.seconds), workflow.id.toString)
 
     val statusListeners = Seq(publisher)
     (probe, wea, executors, statusListeners, subscriber, testWMClientProbe)
@@ -529,7 +585,8 @@ class WorkflowExecutorActorSpec
       Set(node1, node2),
       Set(Edge(node1, 0, node2, 0))),
     JsObject(),
-    ExecutionReport(Map(node1.id -> NodeState.draft, node2.id -> NodeState.draft))
+    ExecutionReport(Map(node1.id -> NodeState.draft, node2.id -> NodeState.draft)),
+    WorkflowInfo.forId(id)
   )
 
   private def workflowInvalidInference(workflowId: Workflow.Id): WorkflowWithResults =

@@ -31,12 +31,21 @@ class StatefulWorkflow(
   private val executionContext: CommonExecutionContext,
   val workflowId: Workflow.Id,
   val metadata: WorkflowMetadata,
+  val workflowInfo: WorkflowInfo,
   private val thirdPartyData: JsObject,
   private val startingExecution: Execution,
   private val stateInferrer: StateInferrer) extends Logging {
 
   private var execution: Execution = startingExecution
   private var additionalData = thirdPartyData
+
+  def getNodesRemovedByWorkflow(workflow: Workflow) : Set[DeeplangNode] = {
+    val previousNodes = execution.graph.nodes
+    val newNodes = workflow.graph.nodes
+    val removedNodesId = previousNodes.map(node => node.id).diff(
+      newNodes.map(node => node.id))
+    previousNodes.filter(node => removedNodesId.contains(node.id))
+  }
 
   def launch(nodes: Set[Node.Id]): Unit = {
     execution match {
@@ -73,7 +82,8 @@ class StatefulWorkflow(
     metadata,
     execution.graph.directedGraph,
     additionalData,
-    executionReport
+    executionReport,
+    workflowInfo
   )
 
   def node(id: Node.Id): DeeplangNode = execution.node(id)
@@ -137,11 +147,12 @@ object StatefulWorkflow extends Logging {
         .getOrElse(node.id -> NodeStateWithResults.draft)
     }.toMap
     val graph = StatefulGraph(workflow.graph, noMissingStates, workflow.executionReport.error)
-    val execution = executionFactory.apply(graph)
+    val execution = executionFactory(graph)
     new StatefulWorkflow(
       executionContext,
       workflow.id,
       workflow.metadata,
+      workflow.workflowInfo,
       workflow.thirdPartyData,
       execution,
       new DefaultStateInferrer(executionContext, workflow.id)

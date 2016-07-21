@@ -21,12 +21,12 @@ import org.apache.spark.sql.types.{DoubleType, StructField, StructType}
 
 import io.deepsense.commons.utils.Logging
 import io.deepsense.deeplang.ExecutionContext
-import io.deepsense.deeplang.doperables.{SparkModelWrapper, Transformer}
 import io.deepsense.deeplang.doperables.report.CommonTablesGenerators.SparkSummaryEntry
 import io.deepsense.deeplang.doperables.report.{CommonTablesGenerators, Report}
 import io.deepsense.deeplang.doperables.serialization.{CustomPersistence, SerializableSparkModel}
 import io.deepsense.deeplang.doperables.spark.wrappers.params.common.PredictorParams
 import io.deepsense.deeplang.doperables.stringindexingwrapper.StringIndexingWrapperModel
+import io.deepsense.deeplang.doperables.{SparkModelWrapper, Transformer}
 import io.deepsense.deeplang.params.Param
 
 class GBTClassificationModel(vanilaModel: VanillaGBTClassificationModel)

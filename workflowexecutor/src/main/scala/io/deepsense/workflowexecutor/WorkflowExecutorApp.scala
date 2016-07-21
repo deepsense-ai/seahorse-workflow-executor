@@ -26,6 +26,7 @@ import io.deepsense.models.json.graph.GraphJsonProtocol.GraphReader
 import io.deepsense.models.json.workflow._
 import io.deepsense.workflowexecutor.buildinfo.BuildInfo
 import io.deepsense.workflowexecutor.executor.{SessionExecutor, WorkflowExecutor}
+import io.deepsense.workflowexecutor.pyspark.PythonPathGenerator
 
 /**
  * WorkflowExecutor
@@ -70,9 +71,57 @@ object WorkflowExecutorApp extends Logging with WorkflowVersionUtil {
       (x, c) => c.copy(messageQueueHost = Some(x))
     } text "message queue host"
 
-    opt[String]('p', "python-executor-path") required() valueName "PATH" action {
+    // Hidden option:
+    opt[Int]("message-queue-port") hidden() valueName "PORT" action {
+      (x, c) => c.copy(messageQueuePort = Some(x))
+    } text "message queue port"
+
+    // Hidden option:
+    opt[String]('m', "message-queue-user") hidden() valueName "USER" action {
+      (x, c) => c.copy(messageQueueUser = Some(x))
+    } text "message queue user"
+
+    // Hidden option:
+    opt[String]("message-queue-pass") hidden() valueName "PASS" action {
+      (x, c) => c.copy(messageQueuePass = Some(x))
+    } text "message queue pass"
+
+    // Hidden option:
+    opt[String]("workflow-id") hidden() valueName "JOB" action {
+      (x, c) => c.copy(workflowId = Some(x))
+    } text "job id"
+
+    opt[String]("wm-address") hidden() valueName "URL" action {
+      (x, c) => c.copy(wmAddress = Some(x))
+    } text "workflow Manager address"
+
+    opt[String]('d', "deps-zip") hidden() valueName "FILE" action {
+      (x, c) => c.copy(depsZip = Some(x))
+    } text "dependencies zip file"
+
+    opt[String]('u', "user-id") hidden() valueName "USER_ID" action {
+      (x, c) => c.copy(userId = Some(x))
+    } text "id of the workflow's owner"
+
+    opt[String]( "wm-username") hidden() valueName "USER" action {
+      (x, c) => c.copy(wmUsername = Some(x))
+    } text "user for accessing Workflow Manager API"
+
+    opt[String]( "wm-password") hidden() valueName "PASSWORD" action {
+      (x, c) => c.copy(wmPassword = Some(x))
+    } text "password for accessing Workflow Manager API"
+
+    opt[String]('p', "python-executor-path") optional() valueName "PATH" action {
       (x, c) => c.copy(pyExecutorPath = Some(x))
     } text "PyExecutor code (included in workflowexecutor.jar) path"
+
+    opt[String]("python-binary") optional() valueName "PATH" action {
+      (x, c) => c.copy(pythonBinaryPath = Some(x))
+    } text "Python binary path"
+
+    opt[String]('t', "temp-dir") optional() valueName "PATH" action {
+      (x, c) => c.copy(tempPath = Some(x))
+    } text "Temporary directory path"
 
     help("help") text "print this help message and exit"
     version("version") text "print product version and exit"
@@ -86,7 +135,18 @@ object WorkflowExecutorApp extends Logging with WorkflowVersionUtil {
       type Requirements = Seq[(FailureCondition, ErrorMsg)]
 
       val interactiveRequirements: Requirements = Seq(
-        (config.messageQueueHost.isEmpty, "--message-queue-host is required in interactive mode"))
+        (config.messageQueueHost.isEmpty, "--message-queue-host is required in interactive mode"),
+        (config.messageQueuePort.isEmpty, "--message-queue-port is required in interactive mode"),
+        (config.messageQueueUser.isEmpty, "--message-queue-user is required in interactive mode"),
+        (config.messageQueuePass.isEmpty, "--message-queue-pass is required in interactive mode"),
+        (config.workflowId.isEmpty, "--workflow-id is required in interactive mode"),
+        (config.wmAddress.isEmpty, "--wm-address is required in interactive mode"),
+        (config.depsZip.isEmpty, "--deps-zip is required in interactive mode"),
+        (config.wmUsername.isEmpty, "--wm-username is required in interactive mode"),
+        (config.wmPassword.isEmpty, "--wm-password is required in interactive mode"),
+        (config.userId.isEmpty, "--user-id is required in interactive mode"),
+        (config.tempPath.isEmpty, "--temp-dir is required in interactive mode")
+      )
 
       val nonInteractiveRequirements: Requirements = Seq(
         (config.workflowFilename.isEmpty,
@@ -124,12 +184,30 @@ object WorkflowExecutorApp extends Logging with WorkflowVersionUtil {
 
     if (params.interactiveMode) {
       // Interactive mode (SessionExecutor)
-      logger.info("Starting SessionExecutor.")
-      logger.debug("Starting SessionExecutor.")
-      SessionExecutor(params.messageQueueHost.get, params.pyExecutorPath.get).execute()
+      SessionExecutor(
+        params.messageQueueHost.get,
+        params.messageQueuePort.get,
+        params.messageQueueUser.get,
+        params.messageQueuePass.get,
+        params.workflowId.get,
+        params.wmAddress.get,
+        params.wmUsername.get,
+        params.wmPassword.get,
+        params.depsZip.get,
+        params.userId.get,
+        params.tempPath.get,
+        params.pythonBinaryPath
+      ).execute()
     } else {
       // Running in non-interactive mode
-      WorkflowExecutor.runInNoninteractiveMode(params)
+      val pythonPathGenerator = new pyspark.Loader(None).load
+        .map(new PythonPathGenerator(_))
+        .getOrElse(throw new RuntimeException("Could not find PySpark!"))
+
+      val tempPath = params.tempPath.getOrElse("/tmp/seahorse/download")
+
+      WorkflowExecutor.runInNoninteractiveMode(
+        params.copy(tempPath = Some(tempPath)), pythonPathGenerator)
     }
   }
 

@@ -21,14 +21,14 @@ import org.apache.spark.mllib.linalg.Vector
 import org.apache.spark.sql.Row
 
 import io.deepsense.commons.types.ColumnType
-import io.deepsense.deeplang.doperables.dataframe.{DataFrameColumnsGetter, DataFrame}
+import io.deepsense.deeplang.doperables.dataframe.{DataFrame, DataFrameColumnsGetter}
 import io.deepsense.deeplang.doperables.spark.wrappers.evaluators.BinaryClassificationEvaluator._
 import io.deepsense.deeplang.doperables.spark.wrappers.params.common.HasLabelColumnParam
 import io.deepsense.deeplang.doperables.{Evaluator, MetricValue}
 import io.deepsense.deeplang.params.choice.{Choice, ChoiceParam}
 import io.deepsense.deeplang.params.selections.{NameSingleColumnSelection, SingleColumnSelection}
 import io.deepsense.deeplang.params.wrappers.spark.ParamsWithSparkWrappers
-import io.deepsense.deeplang.params.{Params, Param, SingleColumnSelectorParam}
+import io.deepsense.deeplang.params.{Param, Params, SingleColumnSelectorParam}
 import io.deepsense.deeplang.{DKnowledge, ExecutionContext}
 
 class BinaryClassificationEvaluator

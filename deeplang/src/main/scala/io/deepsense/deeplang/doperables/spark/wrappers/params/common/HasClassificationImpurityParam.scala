@@ -21,9 +21,8 @@ import scala.language.reflectiveCalls
 import org.apache.spark.ml
 
 import io.deepsense.deeplang.doperables.spark.wrappers.params.common.ClassificationImpurity._
-import io.deepsense.deeplang.params.choice.Choice
+import io.deepsense.deeplang.params.Params
 import io.deepsense.deeplang.params.wrappers.spark.ChoiceParamWrapper
-import io.deepsense.deeplang.params.{Param, Params}
 
 trait HasClassificationImpurityParam extends Params {
 

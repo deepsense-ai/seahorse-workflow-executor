@@ -16,15 +16,15 @@
 
 package io.deepsense.deeplang.doperables
 
-import org.apache.spark.mllib.linalg.{Vectors, VectorUDT}
+import org.apache.spark.mllib.linalg.{VectorUDT, Vectors}
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.types._
 
-import io.deepsense.deeplang.{DKnowledge, DeeplangIntegTestSupport}
 import io.deepsense.deeplang.doperables.spark.wrappers.evaluators.BinaryClassificationEvaluator
 import io.deepsense.deeplang.doperables.spark.wrappers.evaluators.BinaryClassificationEvaluator._
 import io.deepsense.deeplang.doperations.exceptions._
 import io.deepsense.deeplang.params.selections.NameSingleColumnSelection
+import io.deepsense.deeplang.{DKnowledge, DeeplangIntegTestSupport}
 
 class BinaryClassificationEvaluatorIntegSpec extends DeeplangIntegTestSupport {
 

@@ -16,10 +16,7 @@
 
 package io.deepsense.workflowexecutor
 
-import java.util.concurrent.TimeUnit
-
 import akka.actor._
-import akka.util.Timeout
 
 import io.deepsense.commons.exception.{DeepSenseFailure, FailureCode, FailureDescription}
 import io.deepsense.commons.models.Entity
@@ -31,7 +28,6 @@ import io.deepsense.models.json.graph.NodeStatusJsonProtocol
 import io.deepsense.models.workflows._
 import io.deepsense.reportlib.model.ReportContent
 import io.deepsense.workflowexecutor.WorkflowManagerClientActorProtocol.{SaveState, SaveWorkflow}
-import io.deepsense.workflowexecutor.communication.message.workflow.ExecutionStatus
 import io.deepsense.workflowexecutor.partialexecution._
 
 /**
@@ -42,7 +38,7 @@ abstract class WorkflowExecutorActor(
     val executionContext: CommonExecutionContext,
     nodeExecutorFactory: GraphNodeExecutorFactory,
     workflowManagerClientActor: Option[ActorRef],
-    publisher: Option[ActorSelection],
+    publisher: Option[ActorRef],
     terminationListener: Option[ActorRef],
     executionFactory: StatefulGraph => Execution)
   extends Actor
@@ -51,16 +47,15 @@ abstract class WorkflowExecutorActor(
 
   import io.deepsense.workflowexecutor.WorkflowExecutorActor.Messages._
 
-  implicit val wmClientTiemout: Timeout = Timeout(5, TimeUnit.SECONDS)
   val progressReporter = WorkflowProgress()
   val workflowId = Workflow.Id.fromString(self.path.name)
 
   private[workflowexecutor] var statefulWorkflow: StatefulWorkflow = null
 
   def ready(): Receive = {
-    case Launch(nodes) => launch(nodes.toSet)
+    case Launch(nodes) => launch(nodes)
     case UpdateStruct(workflow) => updateStruct(workflow)
-    case Init() => initWhenStateIsAvailable()
+    case Synchronize() => synchronize()
   }
 
   def launched(): Receive = {
@@ -73,7 +68,7 @@ abstract class WorkflowExecutorActor(
   def waitingForFinish(): PartialFunction[Any, Unit] = {
     case NodeCompleted(id, nodeExecutionResult) => nodeCompleted(id, nodeExecutionResult)
     case NodeFailed(id, failureDescription) => nodeFailed(id, failureDescription)
-    case Init() => initWhenStateIsAvailable()
+    case Synchronize() => synchronize()
     case UpdateStruct(workflow) => updateStruct(workflow)
     case l: Launch =>
       logger.info("It is illegal to Launch a graph when the execution is in progress.")
@@ -82,21 +77,24 @@ abstract class WorkflowExecutorActor(
   def initWithWorkflow(workflowWithResults: WorkflowWithResults): Unit = {
     statefulWorkflow = StatefulWorkflow(executionContext, workflowWithResults, executionFactory)
     context.become(ready())
-    initWhenStateIsAvailable()
+    sendInferredState(statefulWorkflow.inferState)
+    onInitiated()
   }
 
-  def initWhenStateIsAvailable(): Unit = {
-    val results: WorkflowWithResults = statefulWorkflow.workflowWithResults
-    sendWorkflowWithResults(results)
+  def synchronize(): Unit = {
+    sendExecutionReport(statefulWorkflow.executionReport)
     sendInferredState(statefulWorkflow.inferState)
   }
 
-  def sendWorkflowWithResults(workflowWithResults: WorkflowWithResults): Unit = {
-    publisher.foreach(_ ! workflowWithResults)
-  }
-
   private def updateStruct(workflow: Workflow): Unit = {
+    val removedNodes = statefulWorkflow.getNodesRemovedByWorkflow(workflow)
     statefulWorkflow.updateStructure(workflow)
+
+    removedNodes.foreach (node => {
+      val nodeRef = getGraphNodeExecutor(node, Vector.empty)
+      nodeRef ! WorkflowNodeExecutorActor.Messages.Delete()
+    })
+
     val workflowWithResults: WorkflowWithResults = statefulWorkflow.workflowWithResults
     workflowManagerClientActor.foreach(_ ! SaveWorkflow(workflowWithResults))
     sendInferredState(statefulWorkflow.inferState)
@@ -128,7 +126,7 @@ abstract class WorkflowExecutorActor(
     val inferredState = statefulWorkflow.currentExecution match {
       case idle: IdleExecution =>
         logger.debug(s"End of execution")
-        terminationListener.foreach(_ ! getExecutionStatus)
+        terminationListener.foreach(_ ! getExecutionReport)
         context.unbecome()
         context.become(ready())
         Some(statefulWorkflow.inferState)
@@ -143,36 +141,39 @@ abstract class WorkflowExecutorActor(
         context.become(waitingForFinish())
         None
     }
-    val executionStatus: ExecutionStatus =
-      ExecutionStatus(statefulWorkflow.changesExecutionReport(startingPointExecution))
-    sendExecutionStatus(executionStatus)
+    val executionReport: ExecutionReport =
+      statefulWorkflow.changesExecutionReport(startingPointExecution)
+    sendExecutionReport(executionReport)
 
     inferredState.foreach(inferredState => sendInferredState(inferredState))
   }
 
-  def sendExecutionStatus(executionStatus: ExecutionStatus): Unit = {
-    logger.debug(s"Status for '$workflowId': Error: ${executionStatus.executionReport.error}, " +
-      s"States of nodes: ${executionStatus.executionReport.nodesStatuses.mkString("\n")}")
-    publisher.foreach(_ ! executionStatus)
-    workflowManagerClientActor.foreach(_ ! SaveState(workflowId, executionStatus.executionReport))
+  def sendExecutionReport(executionReport: ExecutionReport): Unit = {
+    logger.debug(s"Status for '$workflowId': Error: ${executionReport.error}, " +
+      s"States of nodes: ${executionReport.nodesStatuses.mkString("\n")}")
+    publisher.foreach(_ ! executionReport)
+    workflowManagerClientActor.foreach(_ ! SaveState(workflowId, executionReport))
   }
 
-  def executionToStatus(execution: Execution): ExecutionStatus = {
-    ExecutionStatus(ExecutionReport(execution.graph.states.mapValues(_.nodeState)))
-  }
+  def executionToReport(execution: Execution): ExecutionReport =
+    ExecutionReport(execution.graph.states.mapValues(_.nodeState))
 
   def launchReadyNodes(): Unit = {
     logger.debug("launchReadyNodes")
     val readyNodes: Seq[ReadyNode] = statefulWorkflow.startReadyNodes()
     readyNodes.foreach {case readyNode =>
         val input = readyNode.input.toVector
-        val nodeExecutionContext = executionContext.createExecutionContext(
-          workflowId, readyNode.node.id)
-        val nodeRef = nodeExecutorFactory
-          .createGraphNodeExecutor(context, nodeExecutionContext, readyNode.node, input)
+        val nodeRef = getGraphNodeExecutor(readyNode.node, input)
         nodeRef ! WorkflowNodeExecutorActor.Messages.Start()
         logger.debug(s"Starting node $readyNode")
     }
+  }
+
+  private def getGraphNodeExecutor(node: DeeplangNode, dooperable: Vector[DOperable]): ActorRef = {
+    val nodeExecutionContext = executionContext.createExecutionContext(
+      workflowId, node.id)
+    nodeExecutorFactory
+      .createGraphNodeExecutor(context, nodeExecutionContext, node, dooperable)
   }
 
   def nodeStarted(id: Node.Id): Unit = logger.debug("{}", NodeStarted(id))
@@ -211,11 +212,11 @@ abstract class WorkflowExecutorActor(
     }
   }
 
-  def getExecutionStatus: ExecutionStatus = {
-    ExecutionStatus(statefulWorkflow.executionReport)
-  }
+  def getExecutionReport: ExecutionReport = statefulWorkflow.executionReport
 
   def execution: Execution = statefulWorkflow.currentExecution
+
+  protected def onInitiated(): Unit = {}
 }
 
 object WorkflowExecutorActor {
@@ -232,6 +233,7 @@ object WorkflowExecutorActor {
     case class Abort() extends Message
     case class Init() extends Message
     case class UpdateStruct(workflow: Workflow) extends Message
+    case class Synchronize() extends Message
   }
 
   def inferenceErrorsDebugDescription(graphKnowledge: GraphKnowledge): FailureDescription = {

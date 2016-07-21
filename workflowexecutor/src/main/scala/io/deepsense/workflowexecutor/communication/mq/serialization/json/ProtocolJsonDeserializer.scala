@@ -16,50 +16,14 @@
 
 package io.deepsense.workflowexecutor.communication.mq.serialization.json
 
-import java.nio.charset.Charset
-
-import spray.json._
-
 import io.deepsense.models.json.graph.GraphJsonProtocol.GraphReader
-import io.deepsense.workflowexecutor.communication.message.notebook._
-import io.deepsense.workflowexecutor.communication.message.workflow._
-import io.deepsense.workflowexecutor.communication.mq.serialization.MessageMQDeserializer
+import io.deepsense.workflowexecutor.communication.mq.json.JsonMQDeserializer
 
 case class ProtocolJsonDeserializer(graphReader: GraphReader)
-  extends MessageMQDeserializer
-  with LaunchJsonProtocol
-  with AbortJsonProtocol
-  with InitJsonProtocol
-  with UpdateWorkflowJsonProtocol {
-
-  import JsonSerialization._
-
-  def  deserializeMessage(data: Array[Byte]): Any = {
-    val json = new String(data, Charset.forName("UTF-8")).parseJson
-    val jsObject = json.asJsObject
-    deserializeJsonObject(jsObject)
-  }
-
-  protected def deserializeJsonObject(jsObject: JsObject): Any = {
-    val fields = jsObject.fields
-    val messageType = getField(fields, messageTypeKey).convertTo[String]
-    val body = getField(fields, messageBodyKey)
-
-    messageType match {
-      case InMessageType.launch => body.convertTo[Launch]
-      case InMessageType.abort => body.convertTo[Abort]
-      case InMessageType.init => body.convertTo[Init]
-      case InMessageType.getPythonGatewayAddress => GetPythonGatewayAddress()
-      case InMessageType.updateWorkflow => body.convertTo[UpdateWorkflow]
-    }
-  }
-
-  private def getField(fields: Map[String, JsValue], fieldName: String): JsValue = {
-    try {
-      fields(fieldName)
-    } catch {
-      case e: NoSuchElementException =>
-        throw new DeserializationException(s"Missing field: $fieldName", e)
-    }
-  }
-}
+  extends JsonMQDeserializer(
+    Seq(
+      WorkflowProtocol.AbortDeserializer,
+      WorkflowProtocol.LaunchDeserializer,
+      WorkflowProtocol.UpdateWorkflowDeserializer(graphReader),
+      WorkflowProtocol.SynchronizeDeserializer,
+      NotebookProtocol.KernelManagerReadyDeserializer))

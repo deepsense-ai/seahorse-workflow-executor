@@ -22,4 +22,15 @@ case class ExecutionParams(
   extraVars: Map[String, String] = Map.empty,
   interactiveMode: Boolean = false,
   messageQueueHost: Option[String] = None,
-  pyExecutorPath: Option[String] = None)
+  messageQueuePort: Option[Int] = None,
+  messageQueueUser: Option[String] = None,
+  messageQueuePass: Option[String] = None,
+  pyExecutorPath: Option[String] = None,
+  pythonBinaryPath: Option[String] = None,
+  workflowId: Option[String] = None,
+  wmAddress: Option[String] = None,
+  wmUsername: Option[String] = None,
+  wmPassword: Option[String] = None,
+  depsZip: Option[String] = None,
+  userId: Option[String] = None,
+  tempPath: Option[String] = None)

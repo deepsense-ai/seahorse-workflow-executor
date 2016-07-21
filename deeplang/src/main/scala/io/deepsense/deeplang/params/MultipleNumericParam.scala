@@ -20,7 +20,7 @@ import spray.json.DefaultJsonProtocol._
 import spray.json._
 
 import io.deepsense.deeplang.exceptions.DeepLangException
-import io.deepsense.deeplang.params.validators.{ComplexArrayValidator, RangeValidator, Validator}
+import io.deepsense.deeplang.params.validators.{ComplexArrayValidator, Validator}
 
 case class MultipleNumericParam(
     name: String,

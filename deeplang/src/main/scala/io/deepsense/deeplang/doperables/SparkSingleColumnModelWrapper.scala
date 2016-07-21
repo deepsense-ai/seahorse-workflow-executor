@@ -16,6 +16,8 @@
 
 package io.deepsense.deeplang.doperables
 
+import scala.language.reflectiveCalls
+
 import org.apache.spark.ml
 import org.apache.spark.ml.param.{Params, ParamMap => SparkParamMap}
 import org.apache.spark.sql.types.StructType

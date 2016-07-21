@@ -27,6 +27,7 @@ import scala.io.Source
 import scala.util.{Failure, Success, Try}
 
 import akka.actor.ActorSystem
+import com.typesafe.config.ConfigFactory
 import spray.json._
 
 import io.deepsense.commons.models.Entity
@@ -34,12 +35,12 @@ import io.deepsense.commons.utils.Logging
 import io.deepsense.deeplang._
 import io.deepsense.graph.CyclicGraphException
 import io.deepsense.models.json.workflow.exceptions._
-import io.deepsense.models.workflows.{ExecutionReport, WorkflowWithResults, WorkflowWithVariables}
+import io.deepsense.models.workflows.{ExecutionReport, WorkflowInfo, WorkflowWithResults, WorkflowWithVariables}
 import io.deepsense.workflowexecutor.WorkflowExecutorActor.Messages.Launch
 import io.deepsense.workflowexecutor.WorkflowExecutorApp._
 import io.deepsense.workflowexecutor._
-import io.deepsense.workflowexecutor.communication.message.workflow.ExecutionStatus
 import io.deepsense.workflowexecutor.exception.{UnexpectedHttpResponseException, WorkflowExecutionException}
+import io.deepsense.workflowexecutor.pyspark.PythonPathGenerator
 import io.deepsense.workflowexecutor.session.storage.DataFrameStorageImpl
 
 /**
@@ -47,7 +48,9 @@ import io.deepsense.workflowexecutor.session.storage.DataFrameStorageImpl
  */
 case class WorkflowExecutor(
     workflow: WorkflowWithVariables,
-    pythonExecutorPath: String)
+    pythonExecutorPath: String,
+    pythonPathGenerator: PythonPathGenerator,
+    tempPath: String)
   extends Executor {
 
   val dOperableCache = mutable.Map[Entity.Id, DOperable]()
@@ -69,8 +72,13 @@ case class WorkflowExecutor(
     val hostAddress: InetAddress = HostAddressResolver.findHostAddress()
     logger.info("HOST ADDRESS: {}", hostAddress.getHostAddress)
 
+    val pythonBinary = ConfigFactory.load
+        .getString("pythoncaretaker.python-binary-default")
+
     val pythonExecutionCaretaker = new PythonExecutionCaretaker(
       pythonExecutorPath,
+      pythonPathGenerator,
+      pythonBinary,
       sparkContext,
       sqlContext,
       dataFrameStorage,
@@ -82,10 +90,11 @@ case class WorkflowExecutor(
       dataFrameStorage,
       pythonExecutionCaretaker,
       sparkContext,
-      sqlContext)
+      sqlContext,
+      tempPath)
 
     val actorSystem = ActorSystem(actorSystemName)
-    val finishedExecutionStatus: Promise[ExecutionStatus] = Promise()
+    val finishedExecutionStatus: Promise[ExecutionReport] = Promise()
     val statusReceiverActor =
       actorSystem.actorOf(TerminationListenerActor.props(finishedExecutionStatus))
 
@@ -94,7 +103,8 @@ case class WorkflowExecutor(
       workflow.metadata,
       workflow.graph,
       workflow.thirdPartyData,
-      ExecutionReport(Map(), None))
+      ExecutionReport(Map(), None),
+      WorkflowInfo.forId(workflow.id))
     val workflowExecutorActor = actorSystem.actorOf(
       BatchWorkflowExecutorActor.props(executionContext, statusReceiverActor, workflowWithResults),
       workflow.id.toString)
@@ -108,7 +118,7 @@ case class WorkflowExecutor(
       case Failure(exception) => // WEA failed with an exception
         logger.error("WorkflowExecutorActor failed: ", exception)
         throw exception
-      case Success(ExecutionStatus(executionReport)) =>
+      case Success(executionReport: ExecutionReport) =>
         logger.debug(s"WorkflowExecutorActor finished successfully: ${workflow.graph}")
         executionReport
     }
@@ -135,16 +145,20 @@ object WorkflowExecutor extends Logging {
 
   private val outputFile = "result.json"
 
-  def runInNoninteractiveMode(params: ExecutionParams): Unit = {
+  def runInNoninteractiveMode(
+      params: ExecutionParams,
+      pythonPathGenerator: PythonPathGenerator): Unit = {
     val workflow = loadWorkflow(params)
 
     val executionReport = workflow.map(w => {
-      executeWorkflow(w, params.pyExecutorPath.get)
+      executeWorkflow(w, params.pyExecutorPath.get, pythonPathGenerator, params.tempPath.get)
     })
     val workflowWithResultsFuture = workflow.flatMap(w =>
       executionReport
         .map {
-          case Success(r) => WorkflowWithResults(w.id, w.metadata, w.graph, w.thirdPartyData, r)
+          case Success(r) =>
+            val emptyWorkflowInfo = WorkflowInfo.forId(w.id)
+            WorkflowWithResults(w.id, w.metadata, w.graph, w.thirdPartyData, r, emptyWorkflowInfo)
           case Failure(ex) => throw ex;
         }
     )
@@ -220,12 +234,14 @@ object WorkflowExecutor extends Logging {
 
   private def executeWorkflow(
       workflow: WorkflowWithVariables,
-      pythonExecutorPath: String): Try[ExecutionReport] = {
+      pythonExecutorPath: String,
+      pythonPathGenerator: PythonPathGenerator,
+      tempPath: String): Try[ExecutionReport] = {
 
     // Run executor
     logger.info("Executing the workflow.")
     logger.debug("Executing the workflow: " +  workflow)
-    WorkflowExecutor(workflow, pythonExecutorPath).execute()
+    WorkflowExecutor(workflow, pythonExecutorPath, pythonPathGenerator, tempPath).execute()
   }
 
   private def loadWorkflow(params: ExecutionParams): Future[WorkflowWithVariables] = {

@@ -20,54 +20,55 @@ import akka.actor._
 
 import io.deepsense.commons.utils.Logging
 import io.deepsense.models.workflows.Workflow
-import io.deepsense.models.workflows.Workflow.Id
-import io.deepsense.workflowexecutor.{InitWorkflow, WorkflowExecutorActor}
-import io.deepsense.workflowexecutor.WorkflowExecutorActor.Messages.UpdateStruct
-import io.deepsense.workflowexecutor.communication.message.workflow.{Abort, Init, Launch, UpdateWorkflow}
-import io.deepsense.workflowexecutor.communication.mq.MQCommunication
+import io.deepsense.workflowexecutor.communication.message.{global, workflow}
+import io.deepsense.workflowexecutor.executor.Executor
+import io.deepsense.workflowexecutor.{SessionWorkflowExecutorActorProvider, WorkflowExecutorActor}
 
 /**
   * Handles messages with topic workflow.${id}. All messages directed to workflows.
   */
 case class WorkflowTopicSubscriber(
-  executionDispatcher: ActorRef,
-  communicationFactory: MQCommunicationFactory) extends Actor with Logging {
+      actorProvider: SessionWorkflowExecutorActorProvider,
+      sessionId: String,
+      workflowId: Workflow.Id)
+    extends Actor
+    with Logging
+    with Executor {
 
-  private[this] var publishers: Map[Workflow.Id, ActorRef] = Map()
+  private val executorActor: ActorRef = actorProvider.provide(context, workflowId)
 
   override def receive: Receive = {
-    case init @ Init(workflowId) =>
-      logger.debug(s"INIT! '$workflowId'")
-      val publisherPath: ActorPath = getOrCreatePublisher(workflowId)
-      executionDispatcher ! InitWorkflow(init, publisherPath)
-    case Launch(workflowId, nodesToExecute) =>
+    case WorkflowExecutorActor.Messages.Init() =>
+      logger.debug(s"Initializing SessionWorkflowExecutorActor for workflow '$workflowId'")
+      executorActor ! WorkflowExecutorActor.Messages.Init()
+    case workflow.Launch(id, nodesToExecute) if id == workflowId =>
       logger.debug(s"LAUNCH! '$workflowId'")
-      actorsForWorkflow(workflowId) ! WorkflowExecutorActor.Messages.Launch(nodesToExecute)
-    case Abort(workflowId) =>
+      executorActor ! WorkflowExecutorActor.Messages.Launch(nodesToExecute)
+    case workflow.Abort(id) if id == workflowId =>
       logger.debug(s"ABORT! '$workflowId'")
-      actorsForWorkflow(workflowId) ! WorkflowExecutorActor.Messages.Abort()
-    case UpdateWorkflow(workflowId, workflow) =>
+      executorActor ! WorkflowExecutorActor.Messages.Abort()
+    case workflow.UpdateWorkflow(id, workflow) if id == workflowId =>
       logger.debug(s"UPDATE STRUCT '$workflowId'")
-      actorsForWorkflow(workflowId) ! UpdateStruct(workflow)
+      executorActor ! WorkflowExecutorActor.Messages.UpdateStruct(workflow)
+    case workflow.Synchronize() =>
+      logger.debug(s"Got Synchronize() request for workflow '$workflowId'")
+      executorActor ! WorkflowExecutorActor.Messages.Synchronize()
+    case global.PoisonPill() =>
+      logger.info("Got PoisonPill! Shutting down Actor System!")
+      context.system.shutdown()
+    case x =>
+      logger.error(s"Unexpected '$x' from '${sender()}'!")
   }
-
-  private def getOrCreatePublisher(workflowId: Id): ActorPath = {
-    if (!publishers.contains(workflowId)) {
-      val publisher: ActorRef = communicationFactory.createPublisher(
-        MQCommunication.Topic.workflowPublicationTopic(workflowId),
-        MQCommunication.Actor.Publisher.workflow(workflowId))
-      publishers += (workflowId -> publisher)
-    }
-    publishers(workflowId).path
-  }
-
-  private def actorsForWorkflow(workflowId: Workflow.Id): ActorSelection =
-    context.actorSelection(executionDispatcher.path./(workflowId.toString))
 }
 
 object WorkflowTopicSubscriber {
-
-  def props(executionDispatcher: ActorRef, communicationFactory: MQCommunicationFactory): Props = {
-    Props(WorkflowTopicSubscriber(executionDispatcher, communicationFactory))
+  def props(
+      actorProvider: SessionWorkflowExecutorActorProvider,
+      sessionId: String,
+      workflowId: Workflow.Id): Props = {
+    Props(WorkflowTopicSubscriber(
+      actorProvider,
+      sessionId,
+      workflowId))
   }
 }

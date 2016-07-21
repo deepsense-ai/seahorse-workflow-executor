@@ -16,9 +16,8 @@
 
 package io.deepsense.workflowexecutor
 
-import java.util.UUID
-
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.duration.FiniteDuration
 import scala.language.postfixOps
 
 import akka.actor.Status.Failure
@@ -30,7 +29,7 @@ import io.deepsense.deeplang.CommonExecutionContext
 import io.deepsense.models.workflows._
 import io.deepsense.workflowexecutor.WorkflowExecutorActor.Messages.Init
 import io.deepsense.workflowexecutor.WorkflowManagerClientActorProtocol.GetWorkflow
-import io.deepsense.workflowexecutor.communication.message.global.{Ready, ReadyContent, ReadyMessageType}
+import io.deepsense.workflowexecutor.communication.message.global.{Heartbeat, Ready}
 import io.deepsense.workflowexecutor.partialexecution.Execution
 
 /**
@@ -40,9 +39,12 @@ class SessionWorkflowExecutorActor(
     executionContext: CommonExecutionContext,
     nodeExecutorFactory: GraphNodeExecutorFactory,
     workflowManagerClientActor: ActorRef,
-    publisher: ActorSelection,
-    seahorseTopicPublisher: ActorRef,
-    wmTimeout: Int)
+    publisher: ActorRef,
+    heartbeatPublisher: ActorRef,
+    notebookPublisher: ActorRef,
+    wmTimeout: Int,
+    sessionId: String,
+    heartbeatInterval: FiniteDuration)
   extends WorkflowExecutorActor(
     executionContext,
     nodeExecutorFactory,
@@ -54,22 +56,21 @@ class SessionWorkflowExecutorActor(
 
   import scala.concurrent.duration._
 
+  private val heartbeat = Heartbeat(workflowId.toString)
+  private var scheduledHeartbeat: Option[Cancellable] = None
 
   override def receive: Receive = {
     case Init() =>
-      logger.debug("SessionWorkflowExecutorActor for: {} received INIT", workflowId.toString)
-      workflowManagerClientActor.ask(GetWorkflow(workflowId))(wmTimeout seconds) pipeTo self
-      context.become(waitingForWorkflow)
+      initiate()
   }
 
   override def postRestart(reason: Throwable): Unit = {
     super.postRestart(reason)
-    val restartId = UUID.randomUUID()
     logger.warn(
-      s"SessionWorkflowExecutor actor for workflow: ${workflowId.toString} restarted: $restartId",
+      s"SessionWorkflowExecutor actor for workflow: ${workflowId.toString} " +
+        "restarted. Re-initiating!",
       reason)
-    logger.info("Sending Ready message to seahorse topic after restart.")
-    seahorseTopicPublisher ! Ready.afterException(reason, restartId, Some(workflowId))
+    initiate()
   }
 
   def waitingForWorkflow: Actor.Receive = {
@@ -84,21 +85,48 @@ class SessionWorkflowExecutorActor(
       logger.error("Could not get workflow with id", e)
       context.unbecome()
   }
+
+  override protected def onInitiated(): Unit = {
+    scheduleHeartbeats()
+    notebookPublisher ! Ready(sessionId)
+  }
+
+  private def scheduleHeartbeats(): Unit = {
+    logger.info("Scheduling heartbeats.")
+    scheduledHeartbeat.foreach(_.cancel())
+    scheduledHeartbeat = Some(
+      context.system.scheduler.schedule(
+        Duration.Zero,
+        heartbeatInterval,
+        heartbeatPublisher,
+        heartbeat))
+  }
+
+  private def initiate(): Unit = {
+    logger.debug("SessionWorkflowExecutorActor for: {} received INIT", workflowId.toString)
+    workflowManagerClientActor.ask(GetWorkflow(workflowId))(wmTimeout.seconds) pipeTo self
+    context.become(waitingForWorkflow)
+  }
 }
 
 object SessionWorkflowExecutorActor {
   def props(
     ec: CommonExecutionContext,
     workflowManagerClientActor: ActorRef,
-    publisher: ActorSelection,
-    seahorseTopicPublisher: ActorRef,
+    publisher: ActorRef,
+    heartbeatPublisher: ActorRef,
+    notebookPublisher: ActorRef,
     wmTimeout: Int,
-    statusListener: Option[ActorRef] = None): Props =
+    sessionId: String,
+    heartbeatInterval: FiniteDuration): Props =
     Props(new SessionWorkflowExecutorActor(
       ec,
       new GraphNodeExecutorFactoryImpl,
       workflowManagerClientActor,
       publisher,
-      seahorseTopicPublisher,
-      wmTimeout))
+      heartbeatPublisher,
+      notebookPublisher,
+      wmTimeout,
+      sessionId,
+      heartbeatInterval))
 }

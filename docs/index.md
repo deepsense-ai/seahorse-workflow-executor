@@ -18,8 +18,8 @@ Follow the instructions at the [Try Seahorse](/downloads.html) page to start you
 
 ## Test It
 Depending on the deployment mode you are using (they are all listed [here](/downloads.html))
-Seahorse might be available at different addresses. In Seahorse Desktop it's
-<a target="_blank" href="http://172.28.128.100:8000/">http://172.28.128.100:8000/</a>.
+Seahorse might be available at different addresses. In Seahorse Desktop it's usually
+<a target="_blank" href="{{ site.SEAHORSE_EDITOR_ADDRESS }}">{{ site.SEAHORSE_EDITOR_ADDRESS }}</a> (visit [Seahorse Desktop Overview](/desktop_overview.html) for details).
 Open it in your browser and you will see the web-based user interface:
 
 <p style="text-align:center;">
@@ -40,11 +40,11 @@ To create a new workflow:
 * Press the **Create** button.
 
 You have been redirected to workflow editor where you can create your application in a visual way.
-If you are using Seahorse Desktop, you can start editing the workflow right away. Otherwise,
-click the **START EDITING** button in the top panel to start editing the workflow.
+
+Click the **START EDITING** button in the top panel to start editing the workflow.
 
 <p style="text-align:center;">
-    <img class="centered-image img-responsive" src="./img/empty_workflow.png">
+    <img class="centered-image img-responsive" src="./img/quickstart/empty_workflow.png">
     <em>Empty canvas of Seahorse workflow editor</em>
 </p>
 

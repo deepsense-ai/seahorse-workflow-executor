@@ -18,10 +18,8 @@ package io.deepsense.deeplang
 
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
-
 import org.apache.spark.SparkContext
-import org.apache.spark.sql.{DataFrame => SparkDataFrame, SQLContext}
-
+import org.apache.spark.sql.{SQLContext, DataFrame => SparkDataFrame}
 import io.deepsense.commons.models.Id
 import io.deepsense.commons.utils.Logging
 import io.deepsense.deeplang.CustomOperationExecutor.Result
@@ -33,6 +31,7 @@ case class CommonExecutionContext(
     sqlContext: SQLContext,
     inferContext: InferContext,
     fsClient: FileSystemClient,
+    tempPath: String,
     tenantId: String,
     innerWorkflowExecutor: InnerWorkflowExecutor,
     dataFrameStorage: DataFrameStorage,
@@ -44,6 +43,7 @@ case class CommonExecutionContext(
       sqlContext,
       inferContext,
       fsClient,
+      tempPath,
       tenantId,
       innerWorkflowExecutor,
       ContextualDataFrameStorage(dataFrameStorage, workflowId, nodeId),
@@ -62,6 +62,7 @@ object CommonExecutionContext {
       context.sqlContext,
       context.inferContext,
       context.fsClient,
+      context.tempPath,
       context.tenantId,
       context.innerWorkflowExecutor,
       context.dataFrameStorage.dataFrameStorage,
@@ -84,6 +85,7 @@ case class ExecutionContext(
     sqlContext: SQLContext,
     inferContext: InferContext,
     fsClient: FileSystemClient,
+    tempPath: String,
     tenantId: String,
     innerWorkflowExecutor: InnerWorkflowExecutor,
     dataFrameStorage: ContextualDataFrameStorage,
@@ -100,11 +102,27 @@ case class ContextualDataFrameStorage(
   def setInputDataFrame(portNumber: Int, dataFrame: SparkDataFrame): Unit =
     dataFrameStorage.setInputDataFrame(workflowId, nodeId, portNumber, dataFrame)
 
+  def removeNodeInputDataFrames(portNumber: Int): Unit =
+    dataFrameStorage.removeNodeInputDataFrames(workflowId, nodeId, portNumber)
+
   def getOutputDataFrame(portNumber: Int): Option[SparkDataFrame] =
     dataFrameStorage.getOutputDataFrame(workflowId, nodeId, portNumber)
 
   def setOutputDataFrame(portNumber: Int, dataFrame: SparkDataFrame): Unit =
     dataFrameStorage.setOutputDataFrame(workflowId, nodeId, portNumber, dataFrame)
+
+  def removeNodeOutputDataFrames(): Unit =
+    dataFrameStorage.removeNodeOutputDataFrames(workflowId, nodeId)
+
+
+  def withInputDataFrame[T](portNumber: Int, dataFrame: SparkDataFrame)(block: => T) : T = {
+    setInputDataFrame(portNumber, dataFrame)
+    try {
+      block
+    } finally {
+      removeNodeInputDataFrames(portNumber)
+    }
+  }
 }
 
 case class ContextualPythonCodeExecutor(

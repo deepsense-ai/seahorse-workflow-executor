@@ -21,7 +21,7 @@ import org.apache.spark.sql.types.StructType
 
 import io.deepsense.commons.types.ColumnType
 import io.deepsense.deeplang.doperables.SparkEstimatorWrapper
-import io.deepsense.deeplang.doperables.dataframe.{DataFrameColumnsGetter, DataFrame}
+import io.deepsense.deeplang.doperables.dataframe.DataFrameColumnsGetter
 import io.deepsense.deeplang.doperables.spark.wrappers.models.ALSModel
 import io.deepsense.deeplang.doperables.spark.wrappers.params.common._
 import io.deepsense.deeplang.params.Param

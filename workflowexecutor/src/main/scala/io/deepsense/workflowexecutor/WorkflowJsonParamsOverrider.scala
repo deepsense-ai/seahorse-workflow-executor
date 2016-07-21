@@ -17,7 +17,7 @@
 package io.deepsense.workflowexecutor
 
 import spray.json.lenses.JsonLenses._
-import spray.json.{JsValue, DefaultJsonProtocol}
+import spray.json.{DefaultJsonProtocol, JsValue}
 
 object WorkflowJsonParamsOverrider extends DefaultJsonProtocol {
 

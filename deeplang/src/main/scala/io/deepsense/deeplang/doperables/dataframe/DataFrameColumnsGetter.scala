@@ -21,8 +21,7 @@ import java.util.UUID
 import org.apache.spark.sql.types.StructType
 
 import io.deepsense.commons.types.ColumnType.ColumnType
-import io.deepsense.commons.types.ColumnType.ColumnType
-import io.deepsense.commons.types.{ColumnType, SparkConversions}
+import io.deepsense.commons.types.SparkConversions
 import io.deepsense.deeplang.doperations.exceptions.{ColumnDoesNotExistException, ColumnsDoNotExistException}
 import io.deepsense.deeplang.params.selections._
 

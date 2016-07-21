@@ -17,10 +17,13 @@
 package io.deepsense.deeplang.doperations
 
 import java.io._
-import java.nio.file.Files
+import java.nio.file.{Files, Paths}
+import java.util.UUID
 
 import scala.reflect.runtime.{universe => ru}
 
+import org.apache.hadoop.conf.Configuration
+import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.spark.SparkContext
 import org.apache.spark.sql.{DataFrame => SparkDataFrame}
 
@@ -119,7 +122,7 @@ case class ReadDataFrame()
 
     val path = fileChoice.getSourceFile
     if (isUrlSource(path)) {
-      downloadFile(path, context.sparkContext)
+      downloadFile(path, context.tempPath, context.sparkContext)
     } else {
       FileSystemClient.replaceLeadingTildeWithHomeDirectory(path)
     }
@@ -131,9 +134,42 @@ case class ReadDataFrame()
     isHttp || isFtp
   }
 
-  private def downloadFile(url: String, sparkContext: SparkContext): String = {
-    // TODO DS-2355 this saves the file in local filesystem, which will not work in non-local modes
-    val outFilePath = Files.createTempFile("download", ".csv")
+  private def downloadFile(
+      url: String, tempPath: String, sparkContext: SparkContext): String = {
+    if (tempPath.startsWith("hdfs://")) {
+      downloadFileToHdfs(url, tempPath, sparkContext)
+    } else {
+      downloadFileToLocal(url, tempPath, sparkContext)
+    }
+  }
+
+  private def downloadFileToHdfs(
+      url: String, tempPath: String, sparkContext: SparkContext): String = {
+    val content = scala.io.Source.fromURL(url).getLines()
+    val hdfsPath = s"$tempPath/${UUID.randomUUID()}"
+
+    val configuration = new Configuration()
+    val hdfs = FileSystem.get(configuration)
+    val file = new Path(hdfsPath)
+    val hdfsStream = hdfs.create(file)
+    val writer = new BufferedWriter(new OutputStreamWriter(hdfsStream))
+    try {
+      content.foreach {s =>
+        writer.write(s)
+        writer.newLine()
+      }
+    } finally {
+      safeClose(writer)
+      hdfs.close()
+    }
+
+    hdfsPath
+  }
+
+  private def downloadFileToLocal(
+      url: String, tempPath: String, sparkContext: SparkContext): String = {
+    val outFilePath = Files.createTempFile(
+      Files.createDirectories(Paths.get(tempPath)), "download", ".csv")
     // content is a stream. Do not invoke stuff like .toList() on it.
     val content = scala.io.Source.fromURL(url).getLines()
     val writer: BufferedWriter =

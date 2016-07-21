@@ -56,16 +56,20 @@ class WorkflowNodeExecutorActor(
         sendCompleted(nodeExecutionResults)
       } catch {
         case SparkExceptionAsDeeplangException(deeplangEx) => sendFailed(deeplangEx)
-        case e: Exception =>
-          sendFailed(e)
-        case NonFatal(e) =>
-          sendFailed(new RuntimeException(e))
+        case e: Exception => sendFailed(e)
+        case NonFatal(e) => sendFailed(new RuntimeException(e))
+        case fatal: Throwable =>
+          logger.error(s"FATAL ERROR. MSG: ${fatal.getMessage}", fatal)
+          fatal.printStackTrace()
+          throw fatal
       } finally {
         // Exception thrown here could result in slightly delayed graph execution
         val duration = (System.currentTimeMillis() - executionStart) / 1000.0
         logger.info(s"Ending execution of node $nodeDescription (duration: $duration seconds)")
         self ! PoisonPill
       }
+    case Delete() =>
+      executionContext.dataFrameStorage.removeNodeOutputDataFrames()
   }
 
   def sendFailed(e: Exception): Unit = {
@@ -131,5 +135,6 @@ object WorkflowNodeExecutorActor {
   object Messages {
     sealed trait Message
     case class Start() extends Message
+    case class Delete() extends Message
   }
 }
