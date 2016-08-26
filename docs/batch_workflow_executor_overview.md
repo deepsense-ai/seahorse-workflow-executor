@@ -27,14 +27,9 @@ and manage the execution of workflows outside of Seahorse Editor.
   *Seahorse Batch Workflow Executor Overview*
 </div>
 
-
-
 ## Download Seahorse Batch Workflow Executor
 
-Compiled version of Seahorse Batch Workflow Executor is available at
-[Try Seahorse page](/downloads.html).
-
-
+Compiled version of Seahorse Batch Workflow Executor can be found in the latest Seahorse documentation.
 
 ## How to Run Seahorse Batch Workflow Executor
 
