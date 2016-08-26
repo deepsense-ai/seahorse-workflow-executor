@@ -31,8 +31,7 @@ and manage the execution of workflows outside of Seahorse Editor.
 
 ## Download Seahorse Batch Workflow Executor
 
-Compiled version of Seahorse Batch Workflow Executor is available at
-[Try Seahorse page](/downloads.html).
+Compiled version of Seahorse Batch Workflow Executor can be found in the latest Seahorse documentation.
 
 ### Configure Environment Variables
 
