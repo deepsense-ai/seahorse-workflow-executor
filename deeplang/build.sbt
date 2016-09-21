@@ -47,4 +47,8 @@ testGrouping in OurIT <<= (definedTests in OurIT) map assignTestsToJVMs
 
 libraryDependencies ++= Dependencies.deeplang
 
+enablePlugins(DeepsenseBuildInfoPlugin)
+
+buildInfoPackage := "io.deepsense.deeplang.buildinfo"
+
 // scalastyle:on

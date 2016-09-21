@@ -21,6 +21,7 @@ import java.io.File
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.{SparkContext, SparkConf}
 
+import io.deepsense.deeplang.buildinfo.BuildInfo
 import io.deepsense.commons.spark.sql.UserDefinedFunctions
 import io.deepsense.deeplang.catalogs.doperable.DOperableCatalog
 import io.deepsense.deeplang.doperables.dataframe.DataFrameBuilder
@@ -38,7 +39,7 @@ object StandaloneSparkClusterForTests {
       .setAppName("TestApp")
       .setJars(Seq(
         "./deeplang/target/scala-2.11/" +
-          "deepsense-seahorse-deeplang-assembly-1.3.0-DESKTOP-SNAPSHOT.jar"
+          "deepsense-seahorse-deeplang-assembly-" + BuildInfo.version  + ".jar"
       ))
       .set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
       .registerKryoClasses(Array())
