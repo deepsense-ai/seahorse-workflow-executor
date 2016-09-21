@@ -21,7 +21,7 @@ import java.io.File
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.{SparkContext, SparkConf}
 
-import io.deepsense.deeplang.buildinfo.BuildInfo
+import io.deepsense.commons.BuildInfo
 import io.deepsense.commons.spark.sql.UserDefinedFunctions
 import io.deepsense.deeplang.catalogs.doperable.DOperableCatalog
 import io.deepsense.deeplang.doperables.dataframe.DataFrameBuilder
