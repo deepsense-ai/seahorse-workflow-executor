@@ -37,7 +37,7 @@ To learn more about scaling up and using Seahorse in production, see the latest 
 
 Above limitations refer only to Seahorse Desktop.
 To learn more about scaling up and using Seahorse in production,
-see the <a href="https://seahorse.deepsense.io/enterprise.html">Enterprise</a> page.
+see the latest documentation.
 
 
 <div class="contact-block">
