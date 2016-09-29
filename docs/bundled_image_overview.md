@@ -19,8 +19,7 @@ Seahorse is a data analytics platform that allows you to create Spark applicatio
 Seahorse Desktop is a bundled image - a virtual machine containing all necessary components to easily run Seahorse.
 The purpose of Seahorse Desktop is to present important features of Seahorse rather than
 production use, this is why it is limited to a single-node Spark cluster.
-To learn more about scaling up and using Seahorse in production, see the
-<a href="https://seahorse.deepsense.io/enterprise.html">Enterprise</a> page.
+To learn more about scaling up and using Seahorse in production, see the latest version of documentation.
 
 <div class="centered-container" markdown="1">
   ![Seahorse Bundled Image Overview](./img/bundled_image_overview.png){: .centered-image .img-responsive}
@@ -77,13 +76,6 @@ see the <a href="https://seahorse.deepsense.io/enterprise.html">Enterprise</a> p
 * <a target="_blank" href="https://www.vagrantup.com/">Vagrant</a> (tested on version 1.8.1)
 * <a target="_blank" href="https://www.virtualbox.org/">VirtualBox</a> (tested on version 5.0.10, there is an issue with version 5.0.12)
 * <a target="_blank" href="https://www.google.com/chrome/">Google Chrome</a> (version 40+)
-
-### Downloading Seahorse Desktop
-
-A Vagrantfile that describes the image containing all necessary components of Seahorse can be downloaded from
-<a target="_blank" href="https://seahorse.deepsense.io/downloads.html">Try Seahorse</a>.
-Seahorse bundled image is based on <a target="_blank" href="http://www.ubuntu.com/">Ubuntu</a> and contains
-a single-node Spark 1.6 cluster.
 
 ### Run Command
 To run Seahorse Desktop you have to navigate to the directory where you downloaded the Vagrantfile and execute:
