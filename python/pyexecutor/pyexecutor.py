@@ -23,8 +23,8 @@ class PyExecutor(object):
 
         # noinspection PyProtectedMember
         callback_server_port = gateway._callback_server.server_socket.getsockname()[1]
-        spark_context, spark_session = self._initialize_spark_contexts(gateway)
-        code_executor = CodeExecutor(spark_context, spark_session, gateway.entry_point)
+        spark_context, sql_context = self._initialize_spark_contexts(gateway)
+        code_executor = CodeExecutor(spark_context, sql_context, gateway.entry_point)
 
         try:
             gateway.entry_point.registerCallbackServerPort(callback_server_port)
@@ -52,9 +52,9 @@ class PyExecutor(object):
             gateway=gateway,
             jsc=java_spark_context)
 
-        spark_session = SparkSession(spark_context, gateway.entry_point.getSparkSession())
+        sql_context = SparkSession(spark_context, gateway.entry_point.getSparkSession())
 
-        return spark_context, spark_session
+        return spark_context, sql_context
 
     @staticmethod
     def _initialize_gateway(gateway_address):
