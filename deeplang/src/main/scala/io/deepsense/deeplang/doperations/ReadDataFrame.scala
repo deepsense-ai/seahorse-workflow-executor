@@ -18,15 +18,6 @@ package io.deepsense.deeplang.doperations
 
 import java.io._
 import java.net.UnknownHostException
-import java.nio.file.{Files, Paths}
-import java.util.UUID
-
-import scala.reflect.runtime.{universe => ru}
-
-import org.apache.hadoop.conf.Configuration
-import org.apache.hadoop.fs.{FileSystem, Path}
-import org.apache.spark.sql.types.{DoubleType, StructField, StructType}
-import org.apache.spark.sql.{Row, DataFrame => SparkDataFrame}
 
 import io.deepsense.commons.utils.Version
 import io.deepsense.deeplang.DOperation.Id
@@ -42,6 +33,9 @@ import io.deepsense.deeplang.inference.{InferContext, InferenceWarnings}
 import io.deepsense.deeplang.params.Params
 import io.deepsense.deeplang.params.choice.ChoiceParam
 import io.deepsense.deeplang.{DKnowledge, DOperation0To1, ExecutionContext}
+import org.apache.spark.sql.{DataFrame => SparkDataFrame}
+
+import scala.reflect.runtime.{universe => ru}
 
 case class ReadDataFrame()
     extends DOperation0To1[DataFrame]
@@ -108,7 +102,7 @@ case class ReadDataFrame()
   private def readFromJdbc
       (jdbcChoice: InputStorageTypeChoice.Jdbc)
       (implicit context: ExecutionContext): SparkDataFrame =
-    context.sparkSession
+    context.sqlContext
       .read.format("jdbc")
       .option("driver", jdbcChoice.getJdbcDriverClassName)
       .option("url", jdbcChoice.getJdbcUrl)

@@ -58,6 +58,9 @@ object GatewayServerFactory {
     // gatewayServer.readTimeout = readTimeout
     setFieldValue("readTimeout", readTimeout)
 
+    // gatewayServer.cbClient = cbClient
+    setFieldValue("cbClient", cbClient)
+
     // gatewayServer.gateway = new Gateway(entryPoint, cbClient)
     setFieldValue("gateway", new Gateway(entryPoint, cbClient))
 

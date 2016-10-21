@@ -31,10 +31,10 @@ class EstimatorWrapper(
     estimator: Estimator[Transformer])
   extends ml.Estimator[TransformerWrapper] {
 
-  override def fit(dataset: sql.Dataset[_]): TransformerWrapper = {
+  override def fit(dataset: sql.DataFrame): TransformerWrapper = {
     new TransformerWrapper(
       executionContext,
-      estimator._fit(executionContext, DataFrame.fromSparkDataFrame(dataset.toDF())))
+      estimator._fit(executionContext, DataFrame.fromSparkDataFrame(dataset)))
   }
 
   override def copy(extra: ParamMap): EstimatorWrapper = {

@@ -46,7 +46,7 @@ class CodeExecutor(object):
             self.entry_point.executionFailed(workflow_id, node_id, stacktrace)
 
     def _convert_data_to_data_frame(self, data):
-        sparkSession = self.sql_context
+        sqlContext = self.sql_context
         sc = self.spark_context
         try:
             import pandas
@@ -56,13 +56,13 @@ class CodeExecutor(object):
         if isinstance(data, DataFrame):
             return data
         elif self.is_pandas_available and isinstance(data, pandas.DataFrame):
-            return sparkSession.createDataFrame(data)
+            return sqlContext.createDataFrame(data)
         elif isinstance(data, (list, tuple)) and all(isinstance(el, (list, tuple)) for el in data):
-            return sparkSession.createDataFrame(sc.parallelize(data))
+            return sqlContext.createDataFrame(sc.parallelize(data))
         elif isinstance(data, (list, tuple)):
-            return sparkSession.createDataFrame(sc.parallelize(map(lambda x: (x,), data)))
+            return sqlContext.createDataFrame(sc.parallelize(map(lambda x: (x,), data)))
         else:
-            return sparkSession.createDataFrame(sc.parallelize([(data,)]))
+            return sqlContext.createDataFrame(sc.parallelize([(data,)]))
 
     def _run_custom_code(self, workflow_id, node_id, custom_operation_code):
         """
@@ -84,7 +84,7 @@ class CodeExecutor(object):
 
         context = {
             'sc': self.spark_context,
-            'sparkSession': self.sql_context
+            'sqlContext': self.sql_context
         }
 
         exec custom_operation_code in context

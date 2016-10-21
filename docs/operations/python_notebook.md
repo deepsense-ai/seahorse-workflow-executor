@@ -30,8 +30,6 @@ Everytime the input `DataFrame` changes, the `dataframe()` returns the updated `
 
 * `sc` - Spark Context
 
-* `spark` - Spark Session
-
 * `sqlContext` - SQL Context
 
 Data visualization can be achieved using the

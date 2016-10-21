@@ -17,18 +17,18 @@
 import sbt._
 
 object Version {
-  val akka = "2.4.9"
+  val akka = "2.3.11"
   val amazonS3 = "1.10.16"
   val apacheCommons = "3.3.+"
   val guava = "16.0"
-  val hadoop = "2.7.0"
+  val hadoop = "2.6.0"
   val mockito = "1.10.19"
   val nsscalaTime = "1.8.0"
-  val scala = "2.11.8"
+  val scala = "2.10.5"
   val scalacheck = "1.12.2"
   val scalatest = "3.0.0-SNAP4"
   val scoverage = "1.0.4"
-  val spark = "2.0.0"
+  val spark = "1.6.1"
   val spray = "1.3.3"
   val sprayJson = "1.3.2"
   val wireMock = "1.57"
@@ -62,6 +62,7 @@ object Library {
   val scalacheck = "org.scalacheck" %% "scalacheck" % Version.scalacheck
   val slf4j = "org.slf4j" % "slf4j-api" % "1.7.12"
   val slf4jLog4j = "org.slf4j" % "slf4j-log4j12" % "1.7.12"
+  val sparkCSV = "com.databricks" %% "spark-csv" % "1.4.0"
   val sprayCan = spray("can")
   val sprayClient = spray("client")
   val sprayHttpx = spray("httpx")
@@ -98,8 +99,8 @@ object Dependencies {
     val components = Seq(
       sparkMLLib,
       sparkSql,
-      sparkCore
-    )
+      sparkCore,
+      sparkCSV)
     val provided = components.map(_ % Provided)
     val test = components.map(_ % s"$Test,it")
     val onlyInTests = provided ++ test
@@ -132,7 +133,8 @@ object Dependencies {
     amazonS3,
     nscalaTime,
     scalaReflect,
-    apacheCommonsCsv
+    apacheCommonsCsv,
+    sparkCSV
   ) ++ Seq(mockitoCore, scalacheck, scalatest, scoverage).map(_ % Test)
 
   val docgen = Spark.components

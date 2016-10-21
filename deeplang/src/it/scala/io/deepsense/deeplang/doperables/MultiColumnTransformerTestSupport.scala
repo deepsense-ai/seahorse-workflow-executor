@@ -147,10 +147,10 @@ trait MultiColumnTransformerTestSupport {
       StructField("thirdColumn", inputType)
     ))
 
-    val inputDataFrame = sparkSession.createDataFrame(inputData, inputSchema)
-    val outputDataFrame = sparkSession.createDataFrame(outputData, outputSchema)
+    val inputDataFrame = sqlContext.createDataFrame(inputData, inputSchema)
+    val outputDataFrame = sqlContext.createDataFrame(outputData, outputSchema)
     val duplicatedColumnDataFrame =
-      sparkSession.createDataFrame(duplicatedColumnData, duplicatedColumnSchema)
+      sqlContext.createDataFrame(duplicatedColumnData, duplicatedColumnSchema)
 
     (DataFrame.fromSparkDataFrame(inputDataFrame),
       DataFrame.fromSparkDataFrame(outputDataFrame),

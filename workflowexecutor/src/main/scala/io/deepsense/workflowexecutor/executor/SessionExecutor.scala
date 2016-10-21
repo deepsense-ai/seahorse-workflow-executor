@@ -28,7 +28,7 @@ import com.rabbitmq.client.ConnectionFactory
 import com.thenewmotion.akka.rabbitmq._
 import com.typesafe.config.ConfigFactory
 import org.apache.spark.SparkContext
-import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.SQLContext
 
 import io.deepsense.deeplang.catalogs.doperable.DOperableCatalog
 import io.deepsense.deeplang.{CustomCodeExecutionProvider, OperationExecutionDispatcher}
@@ -82,7 +82,7 @@ case class SessionExecutor(
   def execute(): Unit = {
     logger.info(s"SessionExecutor for '$workflowId' starts...")
     val sparkContext = createSparkContext()
-    val sparkSession = createSparkSession(sparkContext)
+    val sqlContext = createSqlContext(sparkContext)
     val dOperableCatalog = createDOperableCatalog()
     val dataFrameStorage = new DataFrameStorageImpl
 
@@ -104,14 +104,14 @@ case class SessionExecutor(
     val operationExecutionDispatcher = new OperationExecutionDispatcher
 
     val customCodeEntryPoint = new CustomCodeEntryPoint(sparkContext,
-      sparkSession, dataFrameStorage, operationExecutionDispatcher)
+      sqlContext, dataFrameStorage, operationExecutionDispatcher)
 
     val pythonExecutionCaretaker = new PythonExecutionCaretaker(
       s"$tempPath/pyexecutor/pyexecutor.py",
       pythonPathGenerator,
       pythonBinary,
       sparkContext,
-      sparkSession,
+      sqlContext,
       dataFrameStorage,
       customCodeEntryPoint,
       hostAddress)
@@ -142,7 +142,7 @@ case class SessionExecutor(
 
     val workflowsSubscriberActor: ActorRef = createWorkflowsSubscriberActor(
       sparkContext,
-      sparkSession,
+      sqlContext,
       dOperableCatalog,
       dataFrameStorage,
       customCodeExecutionProvider,
@@ -188,7 +188,7 @@ case class SessionExecutor(
 
   private def createWorkflowsSubscriberActor(
       sparkContext: SparkContext,
-      sparkSession: SparkSession,
+      sqlContext: SQLContext,
       dOperableCatalog: DOperableCatalog,
       dataFrameStorage: DataFrameStorageImpl,
       customCodeExecutionProvider: CustomCodeExecutionProvider,
@@ -232,7 +232,7 @@ case class SessionExecutor(
       dataFrameStorage,
       customCodeExecutionProvider,
       sparkContext,
-      sparkSession,
+      sqlContext,
       tempPath,
       dOperableCatalog = Some(dOperableCatalog))
 

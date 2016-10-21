@@ -32,7 +32,7 @@ class DefaultMLWriter[T <: Params](instance: T) extends MLWriter {
   def saveImpl(path: String): Unit = {
     val modelPath = Transformer.modelFilePath(path)
     saveMetadata(instance, path, sc)
-    CustomPersistence.save(sparkSession.sparkContext, instance, modelPath)
+    CustomPersistence.save(sqlContext.sparkContext, instance, modelPath)
   }
 
   /**

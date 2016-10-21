@@ -62,7 +62,7 @@ class InputOutputSpec extends
         for (driverFileFormat <- someFormatsSupportedByDriver) {
           s"$driverFileFormat format work on driver" - {
             for (clusterFileFormat <- someFormatsSupportedByCluster) {
-              s"with $clusterFileFormat format works on cluster" in {
+              s"with $clusterFileFormat format works on cluster" ignore {
                 info("Reading file on driver")
                 val path = testFile(driverFileFormat, fileScheme)
                 val dataframe = read(path, driverFileFormat)

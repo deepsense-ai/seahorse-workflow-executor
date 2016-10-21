@@ -7,8 +7,7 @@ from py4j.protocol import Py4JError
 
 from code_executor import CodeExecutor
 from simple_logging import log_debug, log_error
-from pyspark.sql import SparkSession
-from pyspark import SparkContext, SparkConf
+from pyspark import SparkContext, SQLContext, SparkConf
 
 
 class PyExecutor(object):
@@ -52,7 +51,7 @@ class PyExecutor(object):
             gateway=gateway,
             jsc=java_spark_context)
 
-        sql_context = SparkSession(spark_context, gateway.entry_point.getSparkSession())
+        sql_context = SQLContext(spark_context, gateway.entry_point.getSqlContext())
 
         return spark_context, sql_context
 

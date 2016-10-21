@@ -42,7 +42,8 @@ class ReadDataFrameWithDriverFilesIntegSpec
     Row("a2", "", "c2"),
     Row("a3", "b3", ""))
 
-  val threeStringsSchema = schemaWithDefaultColumnNames(Seq(StringType, StringType, StringType))
+  val threeStringsSchema =
+    schemaWithDefaultColumnNames(Seq(StringType, StringType, StringType))
 
   "ReadDataFrame" should {
     "read simple csv file with strings" in {
@@ -128,44 +129,48 @@ class ReadDataFrameWithDriverFilesIntegSpec
 
     "infer column types with conversion to Boolean" in {
       val dataFrame = readDataFrame(
-        fileName = "with_convertible_to_boolean.csv",
+        fileName = "with_inferable_columns.csv",
         csvColumnSeparator = CsvParameters.ColumnSeparatorChoice.Comma(),
         csvNamesIncluded = false,
         csvConvertToBoolean = true
       )
 
+      import DateTimeConverter.{parseTimestamp => toTimestamp}
+
       assertDataFramesEqual(
         dataFrame,
         expectedDataFrame(
           Seq(
-            Row(true),
-            Row(false),
-            Row(true)
+            Row(2.0, true, null, 1.1, " hello,\\ world ", toTimestamp("2015-08-21T19:40:56.823Z")),
+            Row(3.2, false, null, 1.2, " unquoted string", null),
+            Row(1.1, true, null, 1.0, "\"quoted string\"", toTimestamp("2015-08-20T09:40:56.823Z"))
           ),
           schemaWithDefaultColumnNames(
-            Seq(BooleanType)
+            Seq(DoubleType, BooleanType, BooleanType, DoubleType, StringType, TimestampType)
           )
         ))
     }
 
     "infer column types without conversion to Boolean" in {
       val dataFrame = readDataFrame(
-        fileName = "with_convertible_to_boolean.csv",
+        fileName = "with_inferable_columns.csv",
         csvColumnSeparator = CsvParameters.ColumnSeparatorChoice.Comma(),
         csvNamesIncluded = false,
         csvConvertToBoolean = false
       )
 
+      import DateTimeConverter.{parseTimestamp => toTimestamp}
+
       assertDataFramesEqual(
         dataFrame,
         expectedDataFrame(
           Seq(
-            Row(1.0),
-            Row(0.0),
-            Row(1.0)
+            Row(2.0, 1.0, null, 1.1, " hello,\\ world ", toTimestamp("2015-08-21T19:40:56.823Z")),
+            Row(3.2, 0.0, null, 1.2, " unquoted string", null),
+            Row(1.1, 1.0, null, 1.0, "\"quoted string\"", toTimestamp("2015-08-20T09:40:56.823Z"))
           ),
           schemaWithDefaultColumnNames(
-            Seq(DoubleType)
+            Seq(DoubleType, DoubleType, DoubleType, DoubleType, StringType, TimestampType)
           )
         ))
     }

@@ -298,7 +298,7 @@ class DistributionIntegSpec extends DeeplangIntegTestSupport with DataFrameTestF
   private def testDataFrameSizeTable(
       tables: Map[String, Table],
       numberOfColumns: Int,
-      numberOfRows: Long) = {
+      numberOfRows: Long): Registration = {
     val dataFrameSizeTable = tables.get(DataFrameReportGenerator.DataFrameSizeTableName).get
     dataFrameSizeTable.columnNames shouldBe Some(List("Number of columns", "Number of rows"))
     dataFrameSizeTable.rowNames shouldBe None

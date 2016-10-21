@@ -42,14 +42,14 @@ class RowsFilterer extends Transformer {
     logger.debug(s"RowsFilterer(expression = 'resultantExpression'," +
       s" uniqueDataFrameId = '$uniqueDataFrameId')")
 
-    df.sparkDataFrame.createOrReplaceTempView(uniqueDataFrameId)
+    df.sparkDataFrame.registerTempTable(uniqueDataFrameId)
     try {
       logger.debug(s"Table '$uniqueDataFrameId' registered. Executing the expression")
-      val sqlResult = df.sparkDataFrame.sparkSession.sql(resultantExpression)
+      val sqlResult = df.sparkDataFrame.sqlContext.sql(resultantExpression)
       DataFrame.fromSparkDataFrame(sqlResult)
     } finally {
       logger.debug(s"Unregistering the temporary table '$uniqueDataFrameId'")
-      df.sparkDataFrame.sparkSession.catalog.dropTempView(uniqueDataFrameId)
+      df.sparkDataFrame.sqlContext.dropTempTable(uniqueDataFrameId)
     }
   }
 
