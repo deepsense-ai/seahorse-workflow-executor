@@ -40,7 +40,7 @@ When run with Local luster following limitations apply:
 * Max row size: 1 MB
 
 To learn more about scaling up and using Seahorse in production,
-see the <a href="./deployment/enterprise.html">Enterprise</a> page.
+please <a target="_blank" href="http://deepsense.io/about-us/contact/#contact-form">contact us for details</a>.
 
 ## Changelog
 
