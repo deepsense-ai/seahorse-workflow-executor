@@ -35,7 +35,7 @@ import io.deepsense.workflowexecutor.pythongateway.PythonGateway.GatewayConfig
 
 
 /**
- * This object is responsible for a companion Python process, that executes
+ * This object is responsible for a companion Python process that executes
  * user-defined custom operations.
  *
  * It starts PyExecutor and takes care that it's restarted if it dies for any reason.
@@ -44,14 +44,14 @@ import io.deepsense.workflowexecutor.pythongateway.PythonGateway.GatewayConfig
  * Another of its functions is to provide a facade for everything Python/UDF-related.
  */
 class PythonExecutionCaretaker(
-                                pythonExecutorPath: String,
-                                pythonPathGenerator: PythonPathGenerator,
-                                pythonBinary: String,
-                                val sparkContext: SparkContext,
-                                val sparkSQLSession: SparkSQLSession,
-                                val dataFrameStorage: DataFrameStorage,
-                                val customCodeEntryPoint: CustomCodeEntryPoint,
-                                val hostAddress: InetAddress) extends Logging {
+    pythonExecutorPath: String,
+    pythonPathGenerator: PythonPathGenerator,
+    pythonBinary: String,
+    val sparkContext: SparkContext,
+    val sparkSQLSession: SparkSQLSession,
+    val dataFrameStorage: DataFrameStorage,
+    val customCodeEntryPoint: CustomCodeEntryPoint,
+    val hostAddress: InetAddress) extends Logging {
 
   def waitForPythonExecutor(): Unit = {
     pythonGateway.codeExecutor

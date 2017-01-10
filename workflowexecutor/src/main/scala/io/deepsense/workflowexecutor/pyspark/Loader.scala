@@ -24,7 +24,7 @@ class Loader(
   private val localPath: Option[String] = None
 ) extends Logging {
 
-  def load: Option[String] = {
+  def load: Option[String] = {  // TODO simplify, only used with None
     localPath match {
       case Some(x) => Some(x)
       case None =>

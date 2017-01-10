@@ -2,12 +2,20 @@
 import argparse
 import os
 import time
+import sys
+
+
+from code_executor import CodeExecutor
+from simple_logging import log_debug, log_error
+
+log_error('Current pythonpath = {}'.format("\n".join(sys.path)))
+log_error('PYTHONPATH ENV = {}'.format(os.environ["PYTHONPATH"]))
+
+import py4j
 from py4j.java_gateway import JavaGateway, GatewayClient, CallbackServerParameters, java_import
 from py4j.protocol import Py4JError
 from pyspark import SparkContext, SparkConf
 
-from code_executor import CodeExecutor
-from simple_logging import log_debug, log_error
 
 
 class PyExecutor(object):

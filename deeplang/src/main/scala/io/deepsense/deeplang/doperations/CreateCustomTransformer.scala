@@ -16,6 +16,8 @@
 
 package io.deepsense.deeplang.doperations
 
+import java.util.UUID
+
 import scala.reflect.runtime.universe.TypeTag
 
 import spray.json._
