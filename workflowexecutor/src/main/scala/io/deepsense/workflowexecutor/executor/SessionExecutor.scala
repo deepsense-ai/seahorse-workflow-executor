@@ -102,7 +102,7 @@ case class SessionExecutor(
 
     val tempPath = Unzip.unzipAll(depsZip)
 
-    val pythonPathGenerator = new pyspark.Loader(Some(tempPath)).load
+    val pythonPathGenerator = pyspark.Loader.load
       .map(new PythonPathGenerator(_))
       .getOrElse(throw new RuntimeException("Could not find PySpark!"))
 
